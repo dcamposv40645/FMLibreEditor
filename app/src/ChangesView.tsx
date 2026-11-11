@@ -544,6 +544,7 @@ function ChangeRow({ change, field, failure, undoing, onUndo, inBatch }: ChangeR
       <td>{label}</td>
       <td className="change-value" title={storedNote}>
         {value}
+        {change.moved?.loan && <div className="sub">{text.onLoan}</div>}
         {change.moved?.with !== undefined && <div className="sub">{text.swappedWith(change.moved.with)}</div>}
         {change.moved?.released !== undefined && <div className="sub">{text.released(change.moved.released)}</div>}
         {change.moved?.fee !== undefined && <div className="sub">{text.fee(formatMoney(change.moved.fee))}</div>}

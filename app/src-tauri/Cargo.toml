@@ -24,3 +24,9 @@ serde_json.workspace = true
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-updater = "2"
+# The overlay's shortcut, which works while another app (the game) is in front (see src/overlay.rs).
+tauri-plugin-global-shortcut = "2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# The overlay's window over a game in fullscreen (see src/overlay.rs): as Tauri itself uses.
+objc2 = "0.6"

@@ -18,6 +18,7 @@ import type {
   FmDate,
   FreezeKind,
   LoggedChange,
+  NewLoan,
   MassFilters,
   MassOperation,
   MassPreview,
@@ -113,6 +114,12 @@ export const changeLog = () => call<LoggedChange[]>("change_log");
 
 /** Writes back the old value of a logged change; fails if the game has changed the value since. */
 export const undoChange = (id: number) => call<LoggedChange>("undo_change", { id });
+
+/**
+ * Whether `field` is a whole percentage stored as shown (0–100), such as the share of transfer revenue the board makes
+ * available: plain in its scale, but shown and typed with a percent sign.
+ */
+export const isWholePercent = (field: EditField | undefined): boolean => field?.key === "finance.transfer_revenue";
 
 /** The whole percentage the game shows (0–100) for a stored one (0–10000), for a profile that has no field table. */
 export const wholePercent = (stored: number): number => Math.floor((stored + 50) / 100);
@@ -249,6 +256,20 @@ export const makeLoanPermanent = (uid: number, terms: MoveTerms, fee?: number) =
  * Checks that the player `uid` can be released from his club, and names it. Nothing is written; when he cannot be
  * released, the error says why (a loan, a club a human manager runs, ...).
  */
+/**
+ * Checks that the player `uid` can go on loan to the club `club` on `loan`, and names the clubs, the loan's wage and its
+ * last day. Nothing is written; when he cannot, the error says why.
+ */
+export const planLoan = (uid: number, club: number, loan: NewLoan) =>
+  call<MovePreview>("plan_loan", { uid, club, loan });
+
+/**
+ * Sends the player `uid` on loan to the club `club` on `loan`, as the game makes its loans. Logged as a move between the
+ * two clubs, which one undo takes back; left alone, the game ends it on its last day.
+ */
+export const startLoan = (uid: number, club: number, loan: NewLoan) =>
+  call<LoggedChange>("start_loan", { uid, club, loan });
+
 export const planRelease = (uid: number) => call<ClubName>("plan_release", { uid });
 
 /**

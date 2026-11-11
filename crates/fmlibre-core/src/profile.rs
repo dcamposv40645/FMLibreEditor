@@ -161,6 +161,27 @@ pub struct LoanLayout {
     /// In the loan contract: its terms, past the fields it shares with a contract; none where they have not been read.
     #[serde(default)]
     pub terms: Option<LoanTermsLayout>,
+    /// What starting a loan takes; none where it has not been read, and the editor starts no loan there.
+    #[serde(default)]
+    pub start: Option<LoanStartLayout>,
+}
+
+/// What a loan contract the editor makes for a new loan needs besides its terms (see `loans.rs`).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LoanStartLayout {
+    /// Bytes per loan contract: the slots of the game's pool of them.
+    pub size: u64,
+    /// Bytes per record of a player's other contracts: the slots of theirs.
+    pub record_size: u64,
+    /// `u16`: the flags as agreed, which the flags of the terms hold too, with `in_force` set.
+    pub agreed_flags: u64,
+    /// The bit the flags of the terms have besides the agreed ones while the loan runs.
+    pub in_force: u16,
+    /// `i32`: the wage again.
+    pub wage_again: u64,
+    /// `(offset, length)`: places of the model's own, cleared in a new one.
+    pub cleared: Vec<(u64, u64)>,
 }
 
 /// Where a loan contract keeps the terms the game's Loan Club tab shows.
@@ -701,6 +722,10 @@ impl ClubInfoLayout {
 pub struct ClubFinanceLayout {
     pub balance: u64,
     pub transfer_budget: u64,
+    /// i32 0..=100: the share of each player sale's fee the board adds to the transfer budget. Left out of a layout
+    /// until it has been read on that system.
+    #[serde(default)]
+    pub transfer_revenue: Option<u64>,
     pub total_wage_budget: u64,
     pub wage_budget: u64,
     pub ticket_price: u64,
@@ -712,6 +737,7 @@ impl ClubFinanceLayout {
         [
             self.balance + 4,
             self.transfer_budget + 4,
+            self.transfer_revenue.map_or(0, |offset| offset + 4),
             self.total_wage_budget + 4,
             self.wage_budget + 4,
             self.ticket_price + 4,
@@ -1019,6 +1045,11 @@ mod tests {
         assert_eq!(mac.team.manager, windows.team.manager);
         assert_eq!(mac.club.director_of_football, windows.club.director_of_football);
         assert_eq!(mac.club_finance.end(), windows.club_finance.end());
+        // The share of transfer revenue has only been read on the Mac; where both have it, it sits at the same place.
+        assert_eq!(mac.club_finance.transfer_revenue, Some(0x7D0));
+        if windows.club_finance.transfer_revenue.is_some() {
+            assert_eq!(mac.club_finance.transfer_revenue, windows.club_finance.transfer_revenue);
+        }
         assert_eq!(
             (mac.ban.list, mac.ban.started, mac.ban.marker, mac.ban.matches),
             (windows.ban.list, windows.ban.started, windows.ban.marker, windows.ban.matches)

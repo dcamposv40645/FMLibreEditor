@@ -1,7 +1,7 @@
 // What the inputs of the mass-edit dialog hold and what they stand for. No React here: the dialog only draws it.
 
 import { valueText } from "./editDraft";
-import { numberFromIso, shownRange, storedValue } from "./editing";
+import { isWholePercent, numberFromIso, shownRange, storedValue } from "./editing";
 import { describeError } from "./format";
 import {
   editText,
@@ -101,7 +101,7 @@ export function judgeRow(field: EditField, kind: OperationKind, text: string): R
       return invalid(
         field.kind === "i32"
           ? editText.invalidMoney(valueText(field, min), valueText(field, max))
-          : field.scale === "percent"
+          : field.scale === "percent" || isWholePercent(field)
             ? editText.invalidPercentage(valueText(field, min), valueText(field, max))
             : editText.invalid(min, max),
       );

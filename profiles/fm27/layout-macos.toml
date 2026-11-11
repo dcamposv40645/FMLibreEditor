@@ -303,6 +303,20 @@ option_fee = 0xC0
 monthly_fee = 0xCC
 unused_fee = 0xD0
 
+# What starting a loan takes, read across the 1,397 loans of a Barcelona save of 29 May 2033 (Steam build 26385295,
+# Apple silicon; see docs/recon/fm27-loans.md#starting-a-loan). Loan contracts take 256-byte slots of the game's pool
+# of them, and the records of a player's other contracts 32-byte slots of theirs. In 1,029 loans the flags at +0xB0
+# are those at +0xB8 with bit 13 set, and in 1,042 +0xD4 holds the wage again. The places cleared hold pointers of a
+# loan's own (+0x28, +0x30, and +0x68 only in a loan with an option to buy) and its counts of what he has played
+# (+0xF4, +0xF9 and +0xFB, which grow as a loan goes on and read 0 in one that has not).
+[loan.start]
+size = 0x100
+record_size = 0x20
+agreed_flags = 0xB8
+in_force = 0x2000
+wage_again = 0xD4
+cleared = [[0x28, 8], [0x30, 8], [0x68, 8], [0xF4, 2], [0xF8, 4]]
+
 [team]
 club = 0x30
 kind = 0x28
@@ -379,6 +393,11 @@ youth_recruitment = 0x12D
 [club_finance]
 balance = 0x0C
 transfer_budget = 0x7C4
+# i32 0..100: the share of each player sale's fee the board adds to the transfer budget ("percentage of transfer
+# revenue made available" on the Finances screen). Found with `fmlibre-probe finance-find` and confirmed by a write
+# the screen showed (Steam build 26385295, Apple silicon; see docs/recon/fm27-transfer-revenue.md). Not checked on
+# Windows yet, so layout.toml leaves it out and the field is offered on the Mac only.
+transfer_revenue = 0x7D0
 total_wage_budget = 0x808
 wage_budget = 0x814
 ticket_price = 0x864

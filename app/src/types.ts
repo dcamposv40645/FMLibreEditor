@@ -213,6 +213,11 @@ export interface Finances {
   totalWageBudget: number;
   /** Average match ticket, pounds. */
   ticketPrice: number;
+  /**
+   * The share of each player sale's fee the board adds to the transfer budget, 0–100; null where the game's layout is
+   * not known to place it (on Windows so far).
+   */
+  transferRevenue: number | null;
 }
 
 export interface ClubDetails extends ClubSummary {
@@ -634,7 +639,7 @@ export interface EditField {
    * "contract.loan_listed".
    * Clubs: "reputation", "facilities.training", "facilities.youth_facilities", "facilities.youth_coaching",
    * "facilities.youth_recruitment", "facilities.corporate", "finance.balance", "finance.transfer_budget",
-   * "finance.wage_budget", "finance.total_wage_budget".
+   * "finance.transfer_revenue", "finance.wage_budget", "finance.total_wage_budget".
    */
   key: string;
   entity: Entity;
@@ -718,6 +723,8 @@ export interface LoggedChange {
     released?: string;
     /** The fee the buying club paid the selling one, in pounds, if any. */
     fee?: number;
+    /** He went on loan, from `from` to `to`, rather than for good (`start_loan`). */
+    loan?: boolean;
   };
   /**
    * Set for a change to a player's ties, which is logged as a change of his field `tie.nationality`,
@@ -861,7 +868,8 @@ export interface MovePreview {
   to: ClubName;
   /** What the fee does to the two clubs' money, when one is to be paid. */
   fee?: FeePlan;
-  /** For a free agent, the contract the editor makes for him. */
+  /** For a free agent, the contract the editor makes for him; for a loan (`plan_loan`), the loan contract's wage and
+   * last day, and his squad status there. */
   contract?: NewContract;
   /** For a member of staff who has no club, the contract the editor makes for him. */
   staffContract?: NewStaffContract;
@@ -876,6 +884,22 @@ export interface NewStaffContract {
 }
 
 /** The contract the editor makes for a free agent it signs, as the plan has it. */
+/**
+ * A loan for the editor to start (`plan_loan`, `start_loan`): its last day (by default the end of the season, or of his
+ * contract if that comes first), the wage the club he goes to pays (his own by default), and what the clubs agree. No
+ * option to buy and no monthly fees.
+ */
+export interface NewLoan {
+  /** As a number like 20330630. */
+  until: number | null;
+  /** Pounds per week. */
+  wage: number | null;
+  canBeRecalled: boolean;
+  canBeTerminated: boolean;
+  cupMatches: boolean;
+  againstOwnClub: boolean;
+}
+
 export interface NewContract {
   /** Pounds per week. */
   wage: number;

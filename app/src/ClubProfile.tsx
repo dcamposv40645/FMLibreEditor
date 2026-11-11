@@ -280,8 +280,8 @@ function SupporterMix({ segments }: { segments: MixSegment[] }) {
 }
 
 /**
- * The club's money; the four amounts the editor can change are inputs while the club is edited, and the money can be
- * frozen.
+ * The club's money; the four amounts the editor can change, and the share of transfer revenue the board makes
+ * available where the layout places it, are inputs while the club is edited, and the money can be frozen.
  */
 function FinancesGroup({ club, finances }: { club: number; finances: Finances | null }) {
   return (
@@ -307,6 +307,11 @@ function FinancesGroup({ club, finances }: { club: number; finances: Finances | 
             <Fact label={perWeek(text.totalWageBudget)}>
               <EditableValue field="finance.total_wage_budget">{formatMoney(finances.totalWageBudget)}</EditableValue>
             </Fact>
+            {finances.transferRevenue !== null && (
+              <Fact label={text.transferRevenue}>
+                <EditableValue field="finance.transfer_revenue">{text.percent(finances.transferRevenue)}</EditableValue>
+              </Fact>
+            )}
             <Fact label={text.ticketPrice}>{formatTicketPrice(finances.ticketPrice)}</Fact>
           </dl>
           <FreezeMoney club={club} />

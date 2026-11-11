@@ -3837,6 +3837,22 @@ button.danger:hover:not(:disabled) {
   font-size: 13px;
 }
 
+/* The terms of a loan the clubs agree, one checkbox each, under its last day and wage. */
+.loan-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 4px 28px;
+  margin-top: 12px;
+}
+
+.loan-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  font-size: 13px;
+}
+
 /* The pound sign before the wage: the game stores pounds. */
 .move-money {
   display: inline-flex;
@@ -5687,4 +5703,158 @@ button.danger:hover:not(:disabled) {
 .stadium-name-input {
   flex: 1;
   min-width: 0;
+}
+
+/* The overlay (see overlay.ts): a compact window over the game. A profile that is open takes the whole window, over the
+   list, which it gives back when it closes; it is not resized there. */
+.overlay-mode .workspace.with-profile > .players,
+.overlay-mode .panel-resizer {
+  display: none;
+}
+
+.overlay-mode .workspace > .profile:not(.popup) {
+  flex: 1;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+/* The overlay's shortcut, beside its item in the settings menu. */
+.settings-shortcut {
+  margin-left: auto;
+  padding-left: 12px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+}
+
+/* The overlay is small: its bars, headers, buttons and rows take less room, and the notes that explain the main window
+   are left out (they are the same there), so more of a list fits. */
+.overlay-mode .masthead {
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 8px 0 6px;
+}
+
+.overlay-mode .brand,
+.overlay-mode .update-notice,
+.overlay-mode .colophon,
+.overlay-mode .squad-hint {
+  display: none;
+}
+
+.overlay-mode .tab {
+  min-height: 30px;
+  padding: 0 9px;
+  font-size: 13px;
+}
+
+.overlay-mode .masthead-side {
+  gap: 6px;
+}
+
+.overlay-mode .masthead button,
+.overlay-mode .squad-action,
+.overlay-mode .squad-buttons button,
+.overlay-mode .toolbar button,
+.overlay-mode .profile-actions button {
+  min-height: 26px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.overlay-mode .profile-head {
+  gap: 10px;
+  padding: 6px 10px;
+}
+
+.overlay-mode .profile-head > :first-child {
+  zoom: 0.6;
+}
+
+.overlay-mode .profile-id h2 {
+  font-size: 20px;
+}
+
+.overlay-mode .profile-abilities .ability {
+  font-size: 20px;
+}
+
+.overlay-mode .profile-tab {
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+.overlay-mode .squad-tab {
+  gap: 6px;
+  min-height: 0;
+}
+
+.overlay-mode .squad-buttons {
+  gap: 4px;
+}
+
+.overlay-mode .squad-freezes {
+  gap: 0 12px;
+  font-size: 12px;
+}
+
+.overlay-mode .grid th {
+  height: 26px;
+  padding: 0 8px;
+}
+
+.overlay-mode .grid td {
+  height: 28px;
+  padding: 2px 8px;
+}
+
+/* In the overlay a player's name and its tags keep to one line, cut short when it is long (the full name is in the
+   cell's hover text): a row a line high lists twice as many. */
+.overlay-mode .squad-grid td.col-name {
+  max-width: 13rem;
+}
+
+.overlay-mode .squad-name {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.overlay-mode .squad-name .name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overlay-mode .squad-name :is(.tag, .role-badge) {
+  flex: none;
+}
+
+/* Choosing the overlay's shortcut: the box that takes the keys, the shortcut in it as the system writes one. */
+.shortcut-dialog {
+  width: min(28rem, calc(100vw - 32px));
+}
+
+.shortcut-capture {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.shortcut-capture:focus-visible {
+  outline: 2px solid var(--accent, var(--text));
+  outline-offset: 2px;
+}
+
+.shortcut-capture kbd {
+  font: inherit;
+  font-size: 26px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
 }

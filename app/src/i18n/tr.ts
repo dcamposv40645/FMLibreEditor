@@ -587,6 +587,7 @@ export const tr: Strings = {
     "facilities.corporate": "Kurumsal tesisler",
     "finance.balance": "Bakiye",
     "finance.transfer_budget": "Transfer bütçesi",
+    "finance.transfer_revenue": "Kullanılabilir transfer geliri yüzdesi",
     "finance.wage_budget": "Maaş bütçesi",
     "finance.total_wage_budget": "Toplam maaş bütçesi",
     "stadium.capacity": "Stadyum kapasitesi",
@@ -989,6 +990,7 @@ export const tr: Strings = {
     finances: "Finans",
     balance: "Bakiye",
     transferBudget: "Transfer bütçesi",
+    transferRevenue: "Kullanılabilir transfer geliri",
     wageBudget: "Maaş bütçesi (harcama)",
     totalWageBudget: "Toplam maaş bütçesi",
     ticketPrice: "Ortalama bilet fiyatı",
@@ -1068,6 +1070,16 @@ export const tr: Strings = {
     settingsLabel: "Ayarlar",
     languageLabel: "Dil",
     currencyLabel: "Para birimi",
+    gameLabel: "Oyun",
+    followGame: "Oyunu takip et",
+    followGameTitle:
+      "Oyun bir gün ilerlediğinde ya da başka bir kayıt yüklediğinde, açık pencere ya da düzenleme bitince oyunu kendiliğinden yeniden oku",
+    overlay: "Oyunun üstünde pencere",
+    overlayTitle: (shortcut) =>
+      shortcut === null
+        ? "Editörün küçük penceresini FM'in üstünde göster ya da gizle"
+        : `Editörün küçük penceresini FM'in üstünde göster ya da gizle, her yerden: ${shortcut}`,
+    overlayShortcut: "Pencerenin kısayolunu değiştir…",
 
     noteEditable: "Düzenlemeler yalnızca uyguladığınızda oyuna işlenir. Önce kayıt dosyanızı yedekleyin.",
     noteReadOnly: "Salt okunur: Windows, FMLibreEditor'ın oyuna yazmasına izin vermedi.",
@@ -1252,6 +1264,7 @@ export const tr: Strings = {
     hint: "En yeniler üstte. Bir değişiklik yalnızca oyun yazdığı değeri hâlâ tutuyorsa geri alınabilir.",
     continueHint: "Oyun değişiklikleri bir kez ilerleyince gösterir: oyunda Devam'a basın.",
     swappedWith: (name) => `Takas: ${name}`,
+    onLoan: "Kiralık",
     released: (name) => `${name} serbest bırakıldı`,
     fee: (amount) => `Bedel ${amount}`,
     optionRemoved: (amount) => `Satın alma opsiyonu (${amount}) kaldırıldı`,
@@ -1772,6 +1785,55 @@ export const tr: Strings = {
     hint: "Siz kalıcı yapmadan oyunda hiçbir şey değişmez.",
     confirm: "Kalıcı yap",
     confirming: "Kalıcı yapılıyor…",
+    cancel: "İptal",
+  },
+
+  loanStart: {
+    button: "Kirala",
+    buttonTitle: "Onu istediğin kulübe, seçtiğin şartlarla kiralık gönder",
+    title: "Kiralık gönder",
+    from: "Kulübü",
+    to: "Kiralık gideceği kulüp",
+    pickAnother: "Başka kulüp seç",
+    pickClub: "Gideceği kulübü seç.",
+    termsHeading: "Şartlar",
+    until: "Bitiş",
+    untilHint: (contractEnd) =>
+      contractEnd === null
+        ? "Varsayılan: oyundaki sezonun sonu."
+        : `Varsayılan: oyundaki sezonun sonu, ya da önce gelirse sözleşmesinin bitişi (${contractEnd}). Daha sonrası olmaz.`,
+    wage: "Kulübün ödeyeceği maaş",
+    canBeRecalled: "Kulübü onu geri çağırabilir",
+    canBeTerminated: "Kiralık erken bitirilebilir",
+    cupMatches: "Kupa maçlarında oynayabilir",
+    againstOwnClub: "Kendi kulübüne karşı oynayabilir",
+    checking: "Kontrol ediliyor…",
+    terms: (until, wage) => `${until} tarihine kadar, haftalık ${wage}`,
+    doesHeading: "Ne yapar",
+    does: [
+      "Kiralığın son gününe kadar kulübün A takımında, oyunun kendisininmiş gibi tuttuğu bir kiralık sözleşmesiyle oynar",
+      "Kendi kulübüyle sözleşmesi olduğu gibi kalır, kulübü onu kiralıkta gösterir",
+      "Satın alma opsiyonu ve aylık ödeme yok",
+      "Son gün bitince oyun kiralığı bitirir ve o kulübüne döner",
+      "Değişiklikler'de listelenir; tek geri alma kiralığı kaldırır",
+    ],
+    hint: "Kirala'ya basana kadar oyunda hiçbir şey değişmez.",
+    confirm: "Kirala",
+    confirming: "Gönderiliyor…",
+    cancel: "İptal",
+  },
+
+  shortcut: {
+    title: "Oyunun üstündeki pencerenin kısayolu",
+    current: (shortcut) => `Şu an: ${shortcut}`,
+    none: "Şu an hiçbir kısayol çalışmıyor: seçileni başka bir uygulama kullanıyor. Başka birini seç.",
+    prompt: (modifiers) => `Tuşlara bas: ${modifiers} tuşlarından biri ve bir harf, rakam ya da F tuşu`,
+    hint: "Her uygulamadan, tam ekran FM'de de çalışır; uygulama onu hatırlar.",
+    needsModifier: (modifiers) => `Tuşla birlikte ${modifiers} tuşlarından birini basılı tut.`,
+    failed: (reason) => `Bu kısayol kullanılamaz: ${reason}. Eskisi hâlâ çalışıyor.`,
+    reset: (shortcut) => `${shortcut} kısayoluna dön`,
+    save: "Kaydet",
+    saving: "Kaydediliyor…",
     cancel: "İptal",
   },
 

@@ -159,6 +159,12 @@ export const recallText = strings.recall;
 /** Making a player's loan permanent: the dialog the Make permanent button in his profile opens. */
 export const permanentText = strings.permanent;
 
+/** Sending a player on loan: the button beside Transfer, and its dialog (see LoanDialog.tsx). */
+export const loanStartText = strings.loanStart;
+
+/** Choosing the overlay's shortcut (see ShortcutDialog.tsx). */
+export const shortcutText = strings.shortcut;
+
 /** A player's secondary nationalities and homegrown status: the group in his profile and its dialog. */
 export const tieText = strings.ties;
 

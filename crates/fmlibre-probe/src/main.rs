@@ -258,6 +258,38 @@ enum Command {
         #[arg(long, default_value_t = 0)]
         hold: u64,
     },
+    /// Send a player on loan to a club's senior team in the running game, as the game holds its loans: a loan contract
+    /// of the game's own, the record of his other contracts pointing at it, the club's squad list holding him, and his
+    /// team. This writes to the game.
+    LoanStart {
+        /// The player's UID.
+        uid: u32,
+        /// The UID of the club he goes to.
+        club: u32,
+        /// The loan's last day as YYYY-MM-DD; the end of the season (30 June), or of his contract if sooner, otherwise.
+        #[arg(long)]
+        until: Option<String>,
+        /// The wage the club he goes to pays, in pounds per week; his own otherwise.
+        #[arg(long)]
+        wage: Option<i64>,
+        /// His club may not recall him.
+        #[arg(long)]
+        no_recall: bool,
+        /// The loan may not be terminated.
+        #[arg(long)]
+        not_terminable: bool,
+        /// He may not play in cup matches.
+        #[arg(long)]
+        no_cup: bool,
+        /// He may play against his own club.
+        #[arg(long)]
+        against_own_club: bool,
+        /// Only work out the loan, and write nothing.
+        #[arg(long)]
+        plan: bool,
+        #[command(flatten)]
+        restore: RestoreArgs,
+    },
     /// Make the loan of a player permanent in the running game: he stays at the club he is on loan to, now under
     /// contract with it, and leaves his own club.
     Permanent {
@@ -780,6 +812,63 @@ enum Command {
         #[arg(long, requires = "players")]
         by_uid: bool,
     },
+    /// Find where a club's finance record keeps a percentage seen on its Finances screen, such as the share of a
+    /// player's fee the board adds to the transfer budget: every place of the record that holds it as a u8, u16, i32
+    /// or f32 (60, or 0.6), with what the same place holds for other clubs, so that places that do not hold a
+    /// percentage for them can be ruled out. Only reads memory.
+    FinanceFind {
+        /// The club's UID, e.g. your own club's.
+        club: u32,
+        /// The percentage seen, as the screen shows it: 60 for 60%.
+        percent: f64,
+        /// How many bytes of the record to look through, from its start.
+        #[arg(long, default_value = "0x1000")]
+        len: String,
+        /// How far a value may be from the one seen, in percentage points.
+        #[arg(long, default_value_t = 0.0)]
+        tolerance: f64,
+        /// How many other clubs to compare with: those with a full finance record, highest reputation first.
+        #[arg(long, default_value_t = 8)]
+        others: usize,
+        /// Compare with these clubs (UIDs) instead; repeat it for each.
+        #[arg(long = "with", value_name = "UID")]
+        with: Vec<u32>,
+    },
+    /// Write a value to a place of a club's full finance record that no layout names yet, such as one `finance-find`
+    /// found, to see whether the game shows it: this writes to the game. The place must hold 0 to 100 now, the value
+    /// must be 0 to 100, and it must read back as written. With --restore it is put back afterwards.
+    FinanceTry {
+        /// The club's UID.
+        club: u32,
+        /// The place in the finance record, e.g. 0x7d0.
+        #[arg(value_parser = parse_hex)]
+        offset: u64,
+        /// The value to write, 0 to 100.
+        value: i64,
+        /// How the place is stored.
+        #[arg(long, value_enum, default_value_t = FinanceKind::I32)]
+        kind: FinanceKind,
+        #[command(flatten)]
+        restore: RestoreArgs,
+    },
+    /// Compare what points at players on loan with what points at players who are not: one scan of memory for every
+    /// pointer into a sample of each, each told by the record holding it (the pool whose slot it is in, or the class
+    /// of the nearest vtable before it), and the kinds that one group has and the other has not listed first. Players
+    /// on the transfer or the loan list are left out of both, as offers for them point at them too. Only reads memory.
+    LoanHolders {
+        /// How many players of each group to compare.
+        #[arg(long, default_value_t = 40)]
+        count: usize,
+        /// Only players whose own club is this one (UID).
+        #[arg(long)]
+        club: Option<u32>,
+        /// How far before a pointer to look for the vtable of the record that holds it, in bytes.
+        #[arg(long, default_value = "0x400")]
+        window: String,
+        /// How many kinds of record to print.
+        #[arg(long, default_value_t = 40)]
+        show: usize,
+    },
     /// Print the current injuries of the players of one club.
     Injuries {
         /// The club's UID.
@@ -921,6 +1010,24 @@ enum Command {
     },
 }
 
+/// How a place of a finance record that `finance-try` writes is stored.
+#[derive(Clone, Copy, ValueEnum)]
+enum FinanceKind {
+    U8,
+    U16,
+    I32,
+}
+
+impl From<FinanceKind> for Kind {
+    fn from(kind: FinanceKind) -> Self {
+        match kind {
+            FinanceKind::U8 => Kind::U8,
+            FinanceKind::U16 => Kind::U16,
+            FinanceKind::I32 => Kind::I32,
+        }
+    }
+}
+
 /// Putting a change back afterwards, to test it without changing the save.
 #[derive(Args, Clone, Copy)]
 struct RestoreArgs {
@@ -1054,6 +1161,8 @@ fn run(cli: Cli) -> Result<()> {
                 | Command::TieRemove { .. }
                 | Command::TieAdd { .. }
                 | Command::Captain { .. }
+                | Command::FinanceTry { .. }
+                | Command::LoanStart { plan: false, .. }
         )
     );
     let process = attach(cli.pid, elevated, writes)?;
@@ -1309,6 +1418,39 @@ fn run(cli: Cli) -> Result<()> {
             };
             let options = NearbyOptions { by_uid, window: parse_hex(&window)?, tolerance, per_kind, bare };
             nearby(&session, &seen, &targets, &options)
+        }
+        Command::FinanceFind { club, percent, len, tolerance, others, with } => {
+            let session = connect(process, ArraySource::ProfileFirst)?;
+            let options = FinanceFindOptions { len: parse_hex(&len)?, tolerance, others, with };
+            finance_find(&session, club, percent, &options)
+        }
+        Command::LoanStart {
+            uid,
+            club,
+            until,
+            wage,
+            no_recall,
+            not_terminable,
+            no_cup,
+            against_own_club,
+            plan,
+            restore,
+        } => {
+            let loan = fmlibre_core::NewLoan {
+                until: until.as_deref().map(parse_iso_date).transpose()?.map(FmDate::to_number),
+                wage,
+                can_be_recalled: !no_recall,
+                can_be_terminated: !not_terminable,
+                cup_matches: !no_cup,
+                against_own_club,
+            };
+            loan_start(&connect(process, ArraySource::ProfileFirst)?, uid, club, loan, plan, restore)
+        }
+        Command::LoanHolders { count, club, window, show } => {
+            loan_holders(&connect(process, ArraySource::ProfileFirst)?, count, club, parse_hex(&window)?, show)
+        }
+        Command::FinanceTry { club, offset, value, kind, restore } => {
+            finance_try(&connect(process, ArraySource::ProfileFirst)?, club, offset, value, kind.into(), restore)
         }
         Command::Injuries { club } => injuries(&connect(process, ArraySource::ProfileFirst)?, club),
         Command::Stats { min, max, club, player } => {
@@ -5798,8 +5940,14 @@ fn club(session: &Session, uid: u32) -> Result<()> {
     println!("  facilities     {}", facilities.join(", "));
     match &d.finances {
         Some(f) => println!(
-            "  finances       balance £{}, transfer budget £{}, wage budget £{} p/w (total £{}), ticket £{:.0}",
-            f.balance, f.transfer_budget, f.wage_budget, f.total_wage_budget, f.ticket_price
+            "  finances       balance £{}, transfer budget £{}, wage budget £{} p/w (total £{}), ticket £{:.0}{}",
+            f.balance,
+            f.transfer_budget,
+            f.wage_budget,
+            f.total_wage_budget,
+            f.ticket_price,
+            f.transfer_revenue
+                .map_or_else(String::new, |share| format!(", {share}% of transfer revenue made available"))
         ),
         None => println!("  finances       not kept for this club"),
     }
@@ -6523,6 +6671,512 @@ fn nearby(
         }
     }
     println!("{hits} places");
+    Ok(())
+}
+
+/// How `finance-find` looks: see the command's options.
+struct FinanceFindOptions {
+    len: u64,
+    tolerance: f64,
+    others: usize,
+    with: Vec<u32>,
+}
+
+/// The integer ways `finance-find` reads a percentage, in percentage points, narrowest first: where a wider one holds
+/// the value, the narrower ones at the same place do too.
+const PERCENT_INTEGERS: [Encoding; 3] = [
+    ("u8", 1, |b| f64::from(b[0])),
+    ("u16", 2, |b| f64::from(u16::from_le_bytes([b[0], b[1]]))),
+    ("i32", 4, |b| f64::from(i32::from_le_bytes([b[0], b[1], b[2], b[3]]))),
+];
+
+/// The f32 ways `finance-find` reads one: 60 as it is, and 0.6 as a share of one, read in percentage points.
+const PERCENT_FLOATS: [Encoding; 2] = [
+    ("f32", 4, |b| f64::from(f32::from_le_bytes([b[0], b[1], b[2], b[3]]))),
+    ("f32 share", 4, |b| f64::from(f32::from_le_bytes([b[0], b[1], b[2], b[3]])) * 100.0),
+];
+
+/// A place of the finance record that holds the percentage seen.
+struct FinanceHit {
+    offset: usize,
+    /// How it is read, and shown for the other clubs.
+    encoding: Encoding,
+    /// The other ways that hold it at this place: the narrower integers of a wider one.
+    also: Vec<&'static str>,
+    /// What the place holds for each club compared, `None` where it holds a pointer or was not read.
+    others: Vec<Option<f64>>,
+}
+
+/// Whether a value read for another club could be a percentage.
+fn looks_like_percent(value: Option<f64>) -> bool {
+    value.is_some_and(|v| v.is_finite() && (0.0..=100.0).contains(&v))
+}
+
+/// A value of `encoding` (in percentage points) as it is stored: 60, 60.000 or 0.6000.
+fn percent_text(encoding: &str, value: f64) -> String {
+    let stored = if encoding == "f32 share" { value / 100.0 } else { value };
+    if !stored.is_finite() || stored.abs() >= 1e6 {
+        format!("{stored:.1e}")
+    } else if encoding.starts_with("f32") {
+        format!("{stored:.4}")
+    } else {
+        format!("{stored:.0}")
+    }
+}
+
+/// Up to `len` bytes from `addr`, fewer where readable memory ends: the end of a record is not known.
+fn read_up_to(process: &Process, addr: u64, len: usize) -> Vec<u8> {
+    const STEP: usize = 0x100;
+    let mut bytes = Vec::with_capacity(len);
+    while bytes.len() < len {
+        let n = STEP.min(len - bytes.len());
+        match process.read_bytes(addr + bytes.len() as u64, n) {
+            Ok(chunk) => bytes.extend(chunk),
+            Err(_) => break,
+        }
+    }
+    bytes
+}
+
+/// A club's full finance record, the kind that holds its budgets, checked as before a write (its class, and finances
+/// that look real): its address and up to `len` bytes of it. `None` for a club that keeps the smaller record.
+fn finance_record(session: &Session, club: &fmlibre_core::ClubSummary, len: usize) -> Option<(u64, Vec<u8>)> {
+    let process = &session.process;
+    let record = process.read_u64(club.address + session.layout.club.finance).ok()?;
+    let class = is_user_pointer(record).then(|| process.read_u64(record).ok()).flatten()?;
+    let full = Some(class) == session.finance_class()
+        && session.club_details(club).ok().flatten().is_some_and(|details| details.finances.is_some());
+    full.then(|| (record, read_up_to(process, record, len)))
+}
+
+fn finance_find(session: &Session, uid: u32, percent: f64, options: &FinanceFindOptions) -> Result<()> {
+    ensure!(
+        percent.is_finite() && (0.0..=100.0).contains(&percent),
+        "give the percentage as the screen shows it, from 0 to 100, e.g. 60"
+    );
+    ensure!(options.tolerance >= 0.0, "--tolerance cannot be negative");
+    let len = usize::try_from(options.len)?;
+    ensure!(len > 8, "--len must reach past the record's class");
+    note_mapped(&session.process);
+    let class = session
+        .finance_class()
+        .context("the class of the full club finance record was not found, so no record can be told to be one")?;
+    let clubs = ClubIndex::new(session.clubs()?);
+    let club = clubs.get(uid).with_context(|| format!("no club with UID {uid}"))?;
+    let (record, mine) = finance_record(session, club, len).with_context(|| {
+        format!("{} keeps no full finance record: only clubs in the leagues being played have one", club.name)
+    })?;
+    let plugin = &session.plugin;
+    let class = match class.checked_sub(plugin.base).filter(|&rva| rva < plugin.size) {
+        Some(rva) => format!("{GAME_PLUGIN}+{rva:#x}"),
+        None => format!("{class:#x}"),
+    };
+    println!("{} (UID {uid}): finance record {record:#x}, class {class}, {:#x} bytes read", club.name, mine.len());
+
+    // The clubs to compare with, each with its own full record.
+    let candidates: Vec<&fmlibre_core::ClubSummary> = if options.with.is_empty() {
+        let mut all: Vec<_> = clubs.iter().filter(|c| c.uid != uid).collect();
+        all.sort_by_key(|c| std::cmp::Reverse(c.reputation.unwrap_or(0)));
+        all
+    } else {
+        options
+            .with
+            .iter()
+            .map(|&other| clubs.get(other).with_context(|| format!("no club with UID {other}")))
+            .collect::<Result<_>>()?
+    };
+    let mut others: Vec<(&fmlibre_core::ClubSummary, Vec<u8>)> = Vec::new();
+    for other in candidates {
+        if options.with.is_empty() && others.len() >= options.others {
+            break;
+        }
+        match finance_record(session, other, len) {
+            Some((_, bytes)) => others.push((other, bytes)),
+            None if !options.with.is_empty() => {
+                println!("  {} ({}) keeps no full finance record: left out", other.name, other.uid);
+            }
+            None => {}
+        }
+    }
+    if others.is_empty() {
+        println!("No other club to compare with: every place that holds {percent} is listed as it is.");
+    } else {
+        let names: Vec<String> = others.iter().map(|(c, _)| format!("{} ({})", c.name, c.uid)).collect();
+        println!("Compared with, in this order: {}", names.join(", "));
+    }
+
+    // The fields already mapped, so that a place inside one is seen to be part of it.
+    let f = &session.layout.club_finance;
+    let known = [
+        ("balance", f.balance, 4),
+        ("transfer_budget", f.transfer_budget, 4),
+        ("total_wage_budget", f.total_wage_budget, 4),
+        ("wage_budget", f.wage_budget, 4),
+        ("ticket_price", f.ticket_price, 4),
+        ("corporate", f.corporate, 1),
+    ];
+    let inside = |offset: usize, size: usize| {
+        let (start, end) = (offset as u64, (offset + size) as u64);
+        known.iter().find(|&&(_, at, n)| start < at + n && at < end).map(|&(name, ..)| name)
+    };
+    // A value at `offset`, or `None` where the bytes end or belong to a pointer.
+    let value_at = |bytes: &[u8], offset: usize, (_, size, decode): Encoding| {
+        (offset + size <= bytes.len() && !in_address(bytes, offset)).then(|| decode(&bytes[offset..offset + size]))
+    };
+    let read_others = |offset: usize, encoding: Encoding| -> Vec<Option<f64>> {
+        others.iter().map(|(_, bytes)| value_at(bytes, offset, encoding)).collect()
+    };
+    // An f32 of 0.6 is 60.0000024 points: floats get a little room even with no tolerance.
+    let near = |value: f64, float: bool| {
+        let tolerance = if float { options.tolerance.max(0.001) } else { options.tolerance };
+        value.is_finite() && (value - percent).abs() <= tolerance
+    };
+
+    let mut hits = Vec::new();
+    // From 8: the record starts with its class.
+    for offset in 8..mine.len() {
+        // Each type on its own boundary, as the game lays its fields out.
+        let integers: Vec<Encoding> = PERCENT_INTEGERS
+            .into_iter()
+            .filter(|&(_, size, _)| offset % size == 0)
+            .filter(|&encoding| value_at(&mine, offset, encoding).is_some_and(|v| near(v, false)))
+            .collect();
+        if let Some(&narrowest) = integers.first() {
+            // Shown as the widest type that reads as a percentage for every club compared; a u8 followed by other
+            // bytes does not read as one in a u16.
+            let encoding = integers
+                .iter()
+                .rev()
+                .copied()
+                .find(|&encoding| read_others(offset, encoding).into_iter().all(looks_like_percent))
+                .unwrap_or(narrowest);
+            let also = integers.iter().map(|e| e.0).filter(|&name| name != encoding.0).collect();
+            hits.push(FinanceHit { offset, encoding, also, others: read_others(offset, encoding) });
+        }
+        if offset % 4 == 0 {
+            for encoding in PERCENT_FLOATS {
+                if value_at(&mine, offset, encoding).is_some_and(|v| near(v, true)) {
+                    hits.push(FinanceHit { offset, encoding, also: Vec::new(), others: read_others(offset, encoding) });
+                }
+            }
+        }
+    }
+
+    println!();
+    if hits.is_empty() {
+        println!(
+            "No place of the first {:#x} bytes holds {percent} as a u8, u16, i32 or f32, nor {} as an f32.",
+            mine.len(),
+            percent / 100.0
+        );
+        return Ok(());
+    }
+    let fits = |hit: &FinanceHit| !hit.others.is_empty() && hit.others.iter().copied().all(looks_like_percent);
+    hits.sort_by_key(|hit| (!fits(hit), hit.offset));
+    println!("Where {percent}% could be, those that read as a percentage for every club compared first:");
+    println!("  offset  type       {:<9} | the other clubs", "this club");
+    for hit in &hits {
+        let (name, size, decode) = hit.encoding;
+        let value = decode(&mine[hit.offset..hit.offset + size]);
+        let theirs: Vec<String> =
+            hit.others.iter().map(|v| v.map_or_else(|| "-".to_owned(), |v| percent_text(name, v))).collect();
+        let mut notes = Vec::new();
+        if !hit.also.is_empty() {
+            notes.push(format!("also as {}", hit.also.join(", ")));
+        }
+        if let Some(field) = inside(hit.offset, size) {
+            notes.push(format!("inside finance.{field}"));
+        }
+        if !hit.others.is_empty() {
+            let not = hit.others.iter().filter(|&&v| !looks_like_percent(v)).count();
+            if not > 0 {
+                notes.push(format!("not a percentage for {not} of {}", hit.others.len()));
+            } else if hit.others.iter().all(|v| v.is_some_and(|v| (v - value).abs() < 1e-6)) {
+                notes.push("the same for every club".to_owned());
+            }
+        }
+        println!(
+            "  {:<7} {name:<10} {:<9} | {}{}",
+            format!("+{:#x}", hit.offset),
+            percent_text(name, value),
+            theirs.join(" "),
+            if notes.is_empty() { String::new() } else { format!("  ({})", notes.join("; ")) }
+        );
+    }
+    let fitting = hits.iter().filter(|hit| fits(hit)).count();
+    println!("{} places, {fitting} of them a percentage for every club compared.", hits.len());
+    println!("To see the bytes around one: fmlibre-probe dump {record:#x} --len {:#x}", mine.len());
+    Ok(())
+}
+
+fn finance_try(session: &Session, uid: u32, offset: u64, value: i64, kind: Kind, restore: RestoreArgs) -> Result<()> {
+    let size = kind.size() as u64;
+    ensure!(
+        (8..0x1000).contains(&offset) && offset.is_multiple_of(size),
+        "the place must be past the record's class, before 0x1000, and on a {size}-byte boundary"
+    );
+    let (target, name) = find_target(session, Entity::Club, uid)?;
+    let field = Field::unmapped_club_finance(offset, kind, 0..=100);
+    let change = session.write_field(&target, &field, value)?;
+    let read = session.read_field(&target, &field)?;
+    println!("{name} (club {uid})");
+    println!("  finance record +{offset:#x}: {} -> {}, reads back {read}", change.old, change.new);
+    if !restore.restore {
+        println!("  left as it is: to put it back, write {} there again", change.old);
+        return Ok(());
+    }
+    if restore.hold > 0 {
+        println!("  putting it back in {} s: look at the club's Finances screen in the game meanwhile", restore.hold);
+        std::thread::sleep(std::time::Duration::from_secs(restore.hold));
+    }
+    // Only while the game still holds what was written: otherwise the game changed it since, and it is left alone.
+    let back = session.write_field_if(&target, &field, change.new, change.old)?;
+    let read = session.read_field(&target, &field)?;
+    ensure!(read == change.old, "+{offset:#x} reads {read} after putting back {}", change.old);
+    println!("  put back: {} -> {}, reads back {read}", back.old, back.new);
+    Ok(())
+}
+
+fn loan_start(
+    session: &Session,
+    uid: u32,
+    club: u32,
+    loan: fmlibre_core::NewLoan,
+    only_plan: bool,
+    restore: RestoreArgs,
+) -> Result<()> {
+    let players = PlayerIndex::new(session.players()?);
+    let clubs = ClubIndex::new(session.clubs()?);
+    let player = players.get(uid).with_context(|| format!("no player with UID {uid}"))?;
+    let to = clubs.get(club).with_context(|| format!("no club with UID {club}"))?;
+    let human: Vec<u32> = session.staff()?.iter().filter(|s| s.is_human).filter_map(|s| s.club_uid).collect();
+    let plan = session.plan_loan(player, to, loan, &human)?;
+    let from = clubs.get(plan.from_club).map_or("his club", |c| c.name.as_str());
+    let grown = if plan.grows() > 0 { format!(", {} squad list(s) grown", plan.grows()) } else { String::new() };
+    println!("{} (UID {uid}): on loan from {from} to {}, {} writes{grown}", player.name, to.name, plan.writes());
+    if plan.leaves_a_human_club() {
+        println!("  he leaves the human club's selections");
+    }
+    if only_plan {
+        println!("  nothing written (--plan)");
+        return Ok(());
+    }
+    let done = session.apply_club_move(&plan)?;
+    if plan.leaves_a_human_club() {
+        println!("  out of {} of the human club's selections", done.selections());
+    }
+    // Read him again as the editor reads a loan.
+    let now = PlayerIndex::new(session.players()?);
+    let loaned = now.get(uid).context("the player is gone")?;
+    match session.loan(loaned)? {
+        Some(details) => {
+            println!(
+                "  on loan: {} -> {}, {} to {}, wage {}",
+                details.parent.as_deref().unwrap_or("?"),
+                details.club.as_deref().unwrap_or("?"),
+                iso_date(details.from),
+                iso_date(details.until),
+                details.wage
+            );
+            if let Some(t) = details.terms {
+                println!(
+                    "  recall {}, terminate {}, cup matches {}, against own club {}, flags {:#x}",
+                    yes_no(t.can_be_recalled),
+                    yes_no(t.can_be_terminated),
+                    yes_no(t.cup_matches),
+                    yes_no(t.against_own_club),
+                    t.flags
+                );
+            }
+        }
+        None => {
+            session.undo_club_move(&done)?;
+            bail!("the player does not read as on loan: put back as he was");
+        }
+    }
+    if !restore.restore {
+        println!("  left on loan: the game ends it on its last day, or recall him in the app");
+        return Ok(());
+    }
+    if restore.hold > 0 {
+        println!("  putting it back in {} s: look at him in the game meanwhile", restore.hold);
+        std::thread::sleep(std::time::Duration::from_secs(restore.hold));
+    }
+    session.undo_club_move(&done)?;
+    let back = PlayerIndex::new(session.players()?);
+    let back = back.get(uid).context("the player is gone")?;
+    ensure!(session.loan(back)?.is_none(), "the player still reads as on loan after putting it back");
+    println!("  put back: not on loan, at {}", back.club.as_deref().unwrap_or("no club"));
+    Ok(())
+}
+
+fn yes_no(value: bool) -> &'static str {
+    if value { "yes" } else { "no" }
+}
+
+/// What holds a pointer to a player, for `loan-holders`.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum Holder {
+    /// A slot of the pool at this place of the plugin, the pointer this far into the slot.
+    Pool { pool: u64, at: u64 },
+    /// A record whose nearest vtable before the pointer is this one of the plugin's, this far before it.
+    Record { vtable: u64, at: u64 },
+    /// Neither: a list on the heap, most likely.
+    Heap,
+}
+
+fn loan_holders(session: &Session, count: usize, club: Option<u32>, window: u64, show: usize) -> Result<()> {
+    const CHUNK: u64 = 8 << 20;
+    ensure!(count > 0, "--count must be at least 1");
+    let process = &session.process;
+    let plugin = &session.plugin;
+    let p = &session.layout.player;
+    let span = p.end() + p.max_shift();
+    let window = (window / 8 * 8).max(8);
+
+    // The two groups: players on loan, and players at the same clubs who are not; neither on a list.
+    let players = session.players()?;
+    let listed = |player: &fmlibre_core::PlayerSummary| player.transfer_listed || player.loan_listed;
+    let mut loaned = Vec::new();
+    let mut clubs = std::collections::HashSet::new();
+    for player in players.iter().filter(|player| !listed(player) && club.is_none_or(|c| player.club_uid == Some(c))) {
+        if session.loan_contract(player.address, player.shift)?.is_some() {
+            clubs.extend(player.club_uid);
+            loaned.push(player);
+        }
+    }
+    ensure!(!loaned.is_empty(), "no player on loan fits");
+    let others: Vec<_> = players
+        .iter()
+        .filter(|player| !listed(player) && player.club_uid.is_some_and(|c| clubs.contains(&c)))
+        .filter(|player| session.loan_contract(player.address, player.shift).is_ok_and(|loan| loan.is_none()))
+        .collect();
+    // Spread over each group rather than its first ones.
+    let sample = |group: &[&fmlibre_core::PlayerSummary]| -> Vec<u64> {
+        let step = (group.len() / count).max(1);
+        group.iter().step_by(step).take(count).map(|player| player.address).collect()
+    };
+    let groups = [sample(&loaned), sample(&others)];
+    println!(
+        "Players compared: {} on loan (of {}), {} not (of {} at the same clubs); neither on a list",
+        groups[0].len(),
+        loaned.len(),
+        groups[1].len(),
+        others.len()
+    );
+
+    // Every player of both, by where his object starts: (start, group, index in the group).
+    let mut targets: Vec<(u64, usize, usize)> = Vec::new();
+    for (group, addresses) in groups.iter().enumerate() {
+        targets.extend(addresses.iter().enumerate().map(|(index, &address)| (address, group, index)));
+    }
+    targets.sort_unstable();
+    let (lowest, highest) = (targets[0].0, targets[targets.len() - 1].0 + span);
+
+    // The pools' chunks, to tell a pooled record by its pool.
+    let pools = session.object_pools();
+    let mut chunks: Vec<(u64, u64, usize)> = Vec::new();
+    for (index, pool) in pools.iter().enumerate() {
+        let size = u64::from(pool.slot_size);
+        for (n, &chunk) in pool.chunks.iter().enumerate() {
+            chunks.push((chunk, chunk + pool.slots_of(n) * size, index));
+        }
+    }
+    chunks.sort_unstable();
+    let holder = |at: u64| -> Holder {
+        let after = chunks.partition_point(|&(start, ..)| start <= at);
+        if after > 0 && at < chunks[after - 1].1 {
+            let (start, _, index) = chunks[after - 1];
+            let pool = &pools[index];
+            return Holder::Pool { pool: pool.at - plugin.base, at: (at - start) % u64::from(pool.slot_size) };
+        }
+        let from = at.saturating_sub(window);
+        if let Ok(bytes) = process.read_bytes(from, (at - from) as usize) {
+            for (i, word) in bytes.as_chunks::<8>().0.iter().enumerate().rev() {
+                let value = u64::from_le_bytes(*word);
+                if plugin.contains(value) {
+                    return Holder::Record { vtable: value - plugin.base, at: at - (from + i as u64 * 8) };
+                }
+            }
+        }
+        Holder::Heap
+    };
+
+    // One scan: by kind of holder and where in the player it points, which players of each group it holds, and one
+    // place that holds it.
+    type Kind = (Holder, u64);
+    // Which players of each group it holds, and one place that holds it.
+    type Held = ([std::collections::BTreeSet<usize>; 2], u64);
+    let mut kinds: BTreeMap<Kind, Held> = BTreeMap::new();
+    let started = Instant::now();
+    for region in regions(process, 0x1_0000, 0x7FFF_FFFF_0000).into_iter().filter(|r| r.is_readable()) {
+        let mut offset = 0;
+        while offset < region.size {
+            let base = region.base + offset;
+            let len = (region.size - offset).min(CHUNK);
+            if let Ok(chunk) = process.read_bytes(base, len as usize) {
+                for (i, word) in chunk.as_chunks::<8>().0.iter().enumerate() {
+                    let value = u64::from_le_bytes(*word);
+                    if value < lowest || value >= highest {
+                        continue;
+                    }
+                    let after = targets.partition_point(|&(start, ..)| start <= value);
+                    let Some(&(start, group, index)) = after.checked_sub(1).map(|i| &targets[i]) else {
+                        continue;
+                    };
+                    if value - start >= span {
+                        continue;
+                    }
+                    let at = base + (i * 8) as u64;
+                    // A player's own fields pointing into his object are not records that hold him.
+                    if (start..start + span).contains(&at) {
+                        continue;
+                    }
+                    let entry = kinds.entry((holder(at), value - start)).or_insert_with(|| (Default::default(), at));
+                    entry.0[group].insert(index);
+                }
+            }
+            offset += CHUNK;
+        }
+    }
+    println!("Scanned in {:.1} s: {} kinds of holder", started.elapsed().as_secs_f64(), kinds.len());
+
+    let class_at = |address: u64| fmlibre_core::rtti::class_of(process, plugin, address).unwrap_or_else(|| "-".into());
+    let pool_class = |rva: u64| {
+        let pool = pools.iter().find(|pool| pool.at - plugin.base == rva)?;
+        let size = u64::from(pool.slot_size);
+        (0..pool.slots_of(0).min(16))
+            .map(|slot| pool.chunks[0] + slot * size)
+            .find(|&slot| process.read_u64(slot).is_ok_and(|word| plugin.contains(word)))
+            .map(class_at)
+    };
+    let share = |set: &std::collections::BTreeSet<usize>, group: usize| set.len() as f64 / groups[group].len() as f64;
+    let mut ranked: Vec<(&Kind, &Held)> = kinds.iter().collect();
+    ranked.sort_by(|a, b| {
+        let gap = |(sets, _): &Held| (share(&sets[0], 0) - share(&sets[1], 1)).abs();
+        gap(b.1).total_cmp(&gap(a.1))
+    });
+    println!("\n  on loan    not   into player  held by");
+    for ((holder, into), (sets, example)) in ranked.into_iter().take(show) {
+        let held = match *holder {
+            Holder::Pool { pool, at } => {
+                let size = pools.iter().find(|p| p.at - plugin.base == pool).map_or(0, |p| p.slot_size);
+                let class = pool_class(pool).unwrap_or_else(|| "-".into());
+                format!("pool +{pool:#x} ({size}-byte slots, {class}), at +{at:#x}")
+            }
+            Holder::Record { vtable, at } => {
+                format!("record of vtable +{vtable:#x} ({}), at +{at:#x}", class_at(example - at))
+            }
+            Holder::Heap => "the heap, no vtable near".to_owned(),
+        };
+        println!(
+            "  {:>3}/{:<3}  {:>3}/{:<3}  +{into:<#9x}  {held}  e.g. {example:#x}",
+            sets[0].len(),
+            groups[0].len(),
+            sets[1].len(),
+            groups[1].len()
+        );
+    }
     Ok(())
 }
 

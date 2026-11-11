@@ -1,6 +1,7 @@
 // What makes a dialog modal: Tab and focus stay inside it, and Escape closes it without anything behind it hearing it.
 
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
+import { useRefreshHold } from "./refreshHold";
 
 /**
  * The dialogs that are up, the one opened last at the end. A dialog can open another (a player's profile over a club's
@@ -55,6 +56,8 @@ export function useModal(
   // Kept up to date as soon as a render is on screen, so that a key pressed right after (say) Preview was pressed
   // already finds the dialog busy.
   const latest = useRef({ canClose, onClose });
+  // The app does not read the game again by itself while a dialog is up.
+  useRefreshHold(active);
   useLayoutEffect(() => {
     latest.current = { canClose, onClose };
   });

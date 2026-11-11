@@ -290,6 +290,9 @@ fmlibre-probe room 597                               # how full one is, and whom
 fmlibre-probe plan 28106491 597 --release 2000031611 # whether a move can be made, as the app's dialog asks; no writes
 fmlibre-probe move 28106491 597 --release 2000031611 --restore   # move him there in that player's place, and back
 fmlibre-probe swap 13200568 72048035 --restore       # two players swap clubs and back: this writes too
+fmlibre-probe loan-start 2002109237 814089 --plan    # whether a player can go on loan to a club; no writes (Mac only so far)
+fmlibre-probe loan-start 2002109237 814089 --restore # send him on loan and back: this writes too
+fmlibre-probe loan-holders                           # what points at players on loan and not at others; no writes
 fmlibre-probe release 91100466 --restore             # release a player from his club and back: this writes too
 fmlibre-probe staff-move 4000571 1139 --restore      # move a member of staff to a club and back: this writes too
 fmlibre-probe staff-move 4102655 676 --job 88 --restore   # the same, as another job (a code, see staff-job)
@@ -307,6 +310,7 @@ fmlibre-probe ties 2000138835                        # secondary nationalities a
 fmlibre-probe tie-set 2000138835 0 --nation 765 --restore   # point tie 0 at England and back: this writes too
 fmlibre-probe teams 680                              # a club's teams: kinds, captains, players' fitness and morale
 fmlibre-probe captain 680 43425040 --restore         # make a player captain (--vice: vice-captain) and back
+fmlibre-probe finance-find 680 60                    # where a club's finance record keeps a percentage seen (60%), compared with other clubs
 fmlibre-probe prizes                                 # the prize money competitions pay, by final position and per match
 fmlibre-probe prizes 130286 --win 1234567 --restore  # change what a Süper Lig win pays and back: this writes too
 fmlibre-probe scan                                   # find arrays of game objects in game_plugin.dll
@@ -323,7 +327,8 @@ to save the results. `calibrate --scan` ignores the build profile and finds the
 arrays, the in-game date and the retirement manager the way it would on an unknown build.
 
 Only `set`, `move`, `swap`, `release`, `staff-move`, `staff-job`, `staff-sign`, `heal --heal`,
-`bans --lift`, `tie-set`, `tie-add`, `tie-remove`, `captain` and `prizes` with an amount to change write to the game.
+`bans --lift`, `tie-set`, `tie-add`, `tie-remove`, `captain`, `finance-try`, `loan-start` (without `--plan`) and `prizes`
+with an amount to change write to the game.
 Unlike the app, the probe writes to a build without a profile too, as far as the checks allow, so that a new build can
 be mapped.
 - `set` changes one field after the checks above. Values are as stored:

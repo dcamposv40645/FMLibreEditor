@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { call, inTauri } from "./api";
+import { useAutoRefresh, useAutoRefreshSetting } from "./autoRefresh";
+import { isOverlay, tellOtherWindow, toggleOverlay, useOtherWindow } from "./overlay";
 import { BridgeSetup } from "./BridgeSetup";
 import { ChangesView, useChangeLog } from "./ChangesView";
 import { ClubBrowser } from "./ClubBrowser";
@@ -111,6 +113,7 @@ function App() {
           setRefrozen(again);
         }
         setDataVersion((v) => v + 1);
+        tellOtherWindow("reloaded");
       } catch (e) {
         // The Rust side drops the connection when reading fails (e.g. the game was closed).
         setConnection(null);
@@ -118,6 +121,12 @@ function App() {
         throw e;
       }
     });
+
+  // The game moved on: read it again by itself, as Reload data does, when the setting says so (see autoRefresh.ts).
+  // Only the main window does: two reading the game at once would each find the other's connection gone. It tells the
+  // overlay, which reads its lists again (below).
+  const [autoRefresh, setAutoRefresh] = useAutoRefreshSetting();
+  useAutoRefresh(autoRefresh && !isOverlay, connection !== null, busy !== null, reload);
 
   // At startup: the Rust side keeps its connection, lists and change log when the window is reloaded (that is how a
   // change of language keeps the connection), so the app first asks for the connection it may have already. With
@@ -154,7 +163,17 @@ function App() {
   const edited = useCallback(() => {
     setDataVersion((v) => v + 1);
     void reloadLog();
+    tellOtherWindow("edited");
   }, [reloadLog]);
+
+  // The other window read the game again, or wrote to it: this one's lists, profile and log read what it found.
+  useOtherWindow((news) => {
+    if (news === "reloaded") {
+      void call<ConnectionInfo | null>("current_connection").then((current) => current && setConnection(current));
+    }
+    setDataVersion((v) => v + 1);
+    void reloadLog();
+  });
 
   // A version of the game the editor has no profile for is read-only until editing it is allowed.
   const allowEditing = async () => {
@@ -186,7 +205,7 @@ function App() {
   };
 
   return (
-    <div className="app">
+    <div className={isOverlay ? "app overlay-mode" : "app"}>
       <header className="masthead">
         <BrandMark />
         <nav className="tabs">
@@ -222,7 +241,12 @@ function App() {
               {appText.refresh}
             </button>
           )}
-          <SettingsMenu busy={busy !== null} />
+          <SettingsMenu
+            busy={busy !== null}
+            autoRefresh={autoRefresh}
+            onAutoRefresh={setAutoRefresh}
+            onOverlay={inTauri ? () => void toggleOverlay() : undefined}
+          />
         </div>
       </header>
 

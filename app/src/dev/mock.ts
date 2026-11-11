@@ -66,6 +66,7 @@ import type {
   RoomMaker,
   StadiumName,
   SkippedField,
+  NewLoan,
 } from "../types";
 
 const GAME_DATE: FmDate = { year: 2026, month: 7, day: 18 };
@@ -896,6 +897,7 @@ function fieldTable(entity: Entity): EditField[] {
       field("finance.transfer_budget", "i32", 0, 2_000_000_000),
       field("finance.wage_budget", "i32", 0, 100_000_000),
       field("finance.total_wage_budget", "i32", 0, 100_000_000),
+      field("finance.transfer_revenue", "u32", 0, 100),
       ...["capacity", "seating", "used", "expansion"].map((key) => field(`stadium.${key}`, "u32", 0, 250_000)),
     ];
   }
@@ -950,6 +952,7 @@ const FINANCE = {
   transfer_budget: "transferBudget",
   wage_budget: "wageBudget",
   total_wage_budget: "totalWageBudget",
+  transfer_revenue: "transferRevenue",
 } as const;
 
 /**
@@ -1721,6 +1724,58 @@ function planLoanPermanent(uid: number, terms: MoveTerms, fee?: number): ClubToC
 }
 
 /**
+ * `plan_loan`: a fixture player with a club who is not on loan can go on loan to another club, until a day after the
+ * game's and not past his contract (by default the end of the season, or of his contract if that comes first), on his
+ * own wage unless another is given.
+ */
+function planLoan(uid: number, clubUid: number, loan: NewLoan): ClubToClub {
+  const player = players.find((p) => p.uid === uid);
+  if (!player) {
+    throw notFound("player", uid);
+  }
+  if (player.club === null || player.clubUid === null) {
+    throw failure("move.freeAgent", "the player is a free agent, with no club to leave or swap");
+  }
+  if (loanOf(player)) {
+    throw failure("move.onLoan", "the player is on loan");
+  }
+  const to = clubs.find((c) => c.uid === clubUid);
+  if (!to) {
+    throw notFound("club", clubUid);
+  }
+  if (to.uid === player.clubUid) {
+    throw failure("move.sameClub", "the player is at this club already");
+  }
+  const today = numberFromDate(GAME_DATE);
+  const seasonEnd = (GAME_DATE.month <= 6 ? GAME_DATE.year : GAME_DATE.year + 1) * 10_000 + 630;
+  const contractEnd = player.contractExpires ? numberFromDate(player.contractExpires) : 21001231;
+  const until = loan.until ?? Math.min(seasonEnd, contractEnd);
+  if (dateFromNumber(until) === null || until <= today || until > contractEnd) {
+    throw failure("move.outOfRange", `${until} is not a valid loan.expires; it takes ${today + 1} to ${contractEnd}`, {
+      field: "loan.expires",
+      value: until,
+      min: today + 1,
+      max: contractEnd,
+    });
+  }
+  const wage = loan.wage ?? currentValues("player", uid)["contract.wage"] ?? 0;
+  return {
+    from: { uid: player.clubUid, name: player.club },
+    to: { uid: to.uid, name: to.name },
+    contract: { wage, expires: until, squadStatus: 13 },
+  };
+}
+
+/** `start_loan`: the fixture player goes on loan, logged as a move between the two clubs that `undoMove` takes back. */
+function startLoan(uid: number, clubUid: number, loan: NewLoan): LoggedChange {
+  planLoan(uid, clubUid, loan);
+  const logged = movePlayer(uid, clubUid, {});
+  const entry = changes.find((change) => change.id === logged.id)!;
+  entry.moved = { ...entry.moved, loan: true };
+  return { ...entry };
+}
+
+/**
  * `make_loan_permanent`: the fixture player stays where he plays, his loan gone (as for a moved player, `loanOf` has
  * none for him), logged as a move between the two clubs that `undoMove` takes back.
  */
@@ -2415,6 +2470,7 @@ function clubDetails(club: ClubSummary): ClubDetails {
           wageBudget: Math.round(1_000_000 + next() * 3_000_000),
           totalWageBudget: Math.round(1_200_000 + next() * 3_200_000),
           ticketPrice: Math.round(20 + next() * 60),
+          transferRevenue: [25, 50, 60, 75, 100][Math.floor(next() * 5)],
         },
     stadium: stadiumOf(club, next),
   });
@@ -2944,6 +3000,10 @@ export async function mockInvoke<T>(command: string, args?: Record<string, unkno
       const terms = (args?.terms ?? {}) as MoveTerms;
       return movePlayer(Number(args?.uid), Number(args?.club), terms, args?.fee as number, args?.release as number) as T;
     }
+    case "plan_loan":
+      return planLoan(Number(args?.uid), Number(args?.club), args?.loan as NewLoan) as T;
+    case "start_loan":
+      return startLoan(Number(args?.uid), Number(args?.club), args?.loan as NewLoan) as T;
     case "plan_loan_permanent":
       return planLoanPermanent(Number(args?.uid), (args?.terms ?? {}) as MoveTerms, args?.fee as number) as T;
     case "make_loan_permanent":

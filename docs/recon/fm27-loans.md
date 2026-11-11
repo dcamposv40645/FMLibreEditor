@@ -138,3 +138,84 @@ On the Arsenal save of 5 July 2027, a few days after most loans had ended:
 With the probe, each put back: De Cuyper's loan made permanent (`permanent 18110473 --restore`, 11 writes: he read as
 Lyon's, not on loan, with his loan contract's squad status, then on loan again), and a recall's writes, his loan's
 end to the game's date and his option to buy to -1, each read back and restored.
+
+## Starting a loan
+
+Read on the Mac Steam build 26385295 (Apple silicon), on a Barcelona save of 29 May 2033 with 1,397 players on loan,
+with the probe (`loan-holders`, `loans --raw`, `instances db::LOAN_CONTRACT --fields`, `pools`, `refs`).
+
+### What a loan is made of
+
+`loan-holders` finds every pointer into 60 players on loan and 60 players at the same clubs who are not (neither group
+on the transfer or loan list, as offers for a player point at him too), and tells each pointer by the record that
+holds it: the pool whose slot it is in, or the class of the nearest vtable before it. Only one kind of record pointed at
+all 60 players on loan and at none of the others: the loan contract. The others that come with loans come with some of
+them only: `LOAN_OFFER` objects (22 of 60), offers for a player of another club; and records of two pools of no class
+(27 and 21 of 60, 8 and 3 of the others), most likely what he has played, which the game adds as he plays.
+
+So a loan is what the notes above describe, and nothing more:
+
+1. the loan contract (`db::LOAN_CONTRACT`), from the game's pool of them: 256-byte slots, at `game_plugin+0x574dcb8`
+   on this build, with 1,722 used and 3 free on 29 May;
+2. the record of the player's other contracts pointing at it, from a pool of 32-byte slots of no class
+   (`game_plugin+0x574bbc0`, 1 free). A player with a contract with a B team has one already, its place for a loan
+   empty: Roc, of Barcelona B, held his `B_CLUB_CONTRACT` at `+0x08`;
+3. the team he plays for: the club's senior team, which lists him; his own club's lists keep him (as Dinho, on loan from
+   Barcelona to FC Bayern München, is in both, "loan out" and "loan in").
+
+The pool holds more loan contracts than there are loans: 1,722 against 1,397. The others are held by no record. Dinho,
+on Barcelona's loan list, had three more loan contracts of his, with other clubs' teams, beside his loan's: loans
+offered for him.
+
+### The loan contract, past what it shares with a contract
+
+What every loan contract holds, across the 1,722 (`instances --fields`) and the 1,397 loans (`loans --raw`):
+
+| Offset | In the loans |
+| --- | --- |
+| `+0x28`, `+0x30` | null in nearly all; a pointer in 42 and 65 (the reasons he is unhappy, as in a contract) |
+| `+0x60` | a small number (0, 1, 0x100, 2) |
+| `+0x68` | a pointer to a 200-byte object of the loan's own, in **253**, and only in loans with an option to buy; null in the other 1,144. Each points at its own, and nothing else points at it |
+| `+0x70` to `+0x8C` | zero in every loan |
+| `+0x90` to `+0x9C` | -1 in every loan |
+| `+0xA0`, `+0xA4` | numbers that do not grow with the loan |
+| `+0xA8` | 0xC8C (3,212) in every loan |
+| `+0xB0` | the flags of the terms (`[loan.terms]`); in 1,029 loans those at `+0xB8` with bit 13 (`0x2000`) set, and `0x0911` in the next two bytes |
+| `+0xB8` | the flags as agreed: the terms' bits, without bit 13 |
+| `+0xC0` to `+0xD0` | the option to buy and the monthly fees (`[loan.terms]`); 0 for no fee in most loans |
+| `+0xD4` | the wage again, in 1,042 loans (0 in 316) |
+| `+0xD8`, `+0xDC` | 90, 180, 270 or -1: numbers of days |
+| `+0xEC`, `+0xF0` | 1 January 1900, no date, in every loan |
+| `+0xF4`, `+0xF9`, `+0xFB` | counts that grow as the loan goes on (Spearman's rho 0.58 to 0.65 against the days since it began), 0 in a loan that has not been played |
+
+### Making one
+
+`Session::plan_loan` (`loans.rs`) and the probe's `loan-start` start a loan as the game holds one (`[loan.start]` in
+`layout-macos.toml`; none on Windows yet, where the editor starts no loan):
+
+1. the first free slot of the pool of loan contracts, a copy of the first running loan's in the pool with no option to
+   buy whose flags are as most loans' are: the player's, with the club's senior team, from today to the loan's last day
+   (by default 30 June, or his contract's end when that comes first, and never past it), on the wage given or his own
+   (at `+0x20` and `+0xD4`), with the squad status of his own contract and how happy he is with it, no squad number,
+   off the lists. The terms given (recall, termination, cup matches, against his own club) at `+0xB8`, and at `+0xB0`
+   with bit 13; no option to buy, no fees. `+0x28`, `+0x30`, `+0x68` and the counts at `+0xF4` to `+0xFB` cleared;
+2. his record pointing at it: his own, where its place for a loan is empty (a trial contract there is left alone, and
+   the loan refused), or the first free slot of the pool of records;
+3. the club's senior team's list holding him, grown when it is full;
+4. his team: that senior team. His own contract, and his club's lists, stay as they are; a captaincy he holds at the
+   club he played for is left empty, and a club a human manager runs leaves him out of its selections.
+
+One undo takes it all back, both slots first in their pools' chains again.
+
+### Checked
+
+With the probe, on the Barcelona save of 29 May 2033:
+
+- `loan-start 2002109237 814089 --restore --hold 180`: Roc (19, Barcelona B, under contract with Barcelona until 30
+  June 2033) on loan to Girona until 30 June, 6 writes. The game's profile said "On loan at Girona", "Parent Club
+  Barcelona" and "Out On Loan", with a Loan Report and a 32-33 row for Girona in his career. Put back, the loan
+  contract's slot was free again (3 free, 1,722 used), his record's place for a loan empty, he was out of Girona's
+  list and at Barcelona B; the game showed no loan and no row for Girona.
+- `loan-start 2002109237 814089 --until 2033-06-02`, played on to 4 June: the game ended the loan itself on its last
+  day. Roc was back at Barcelona B, out of Girona's list, his record's place for a loan cleared (his B team contract
+  kept), and the loan contract's slot free.
