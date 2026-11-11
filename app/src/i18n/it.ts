@@ -644,6 +644,7 @@ export const it: Strings = {
     "facilities.corporate": "Strutture aziendali",
     "finance.balance": "Saldo",
     "finance.transfer_budget": "Budget trasferimenti",
+    "finance.transfer_revenue": "Percentuale degli incassi dalle cessioni disponibile",
     "finance.wage_budget": "Budget stipendi",
     "finance.total_wage_budget": "Budget stipendi complessivo",
     "stadium.capacity": "Capienza dello stadio",
@@ -1062,6 +1063,7 @@ export const it: Strings = {
     finances: "Finanze",
     balance: "Saldo",
     transferBudget: "Budget trasferimenti",
+    transferRevenue: "Incassi dalle cessioni disponibili",
     wageBudget: "Budget stipendi (spesa)",
     totalWageBudget: "Budget stipendi complessivo",
     ticketPrice: "Prezzo medio del biglietto",
@@ -1144,6 +1146,16 @@ export const it: Strings = {
     settingsLabel: "Impostazioni",
     languageLabel: "Lingua",
     currencyLabel: "Valuta",
+    gameLabel: "Gioco",
+    followGame: "Segui il gioco",
+    followGameTitle:
+      "Rileggi il gioco da solo quando avanza di un giorno o carica un altro salvataggio, dopo il dialogo o la modifica aperti",
+    overlay: "Finestra sopra il gioco",
+    overlayTitle: (shortcut) =>
+      shortcut === null
+        ? "Mostra o nasconde una finestra compatta dell'editor sopra FM"
+        : `Mostra o nasconde una finestra compatta dell'editor sopra FM, da qualsiasi app: ${shortcut}`,
+    overlayShortcut: "Cambia la scorciatoia della finestra…",
 
     noteEditable: "Le modifiche arrivano al gioco solo quando le applichi. Fai prima un backup del salvataggio.",
     noteReadOnly: "Sola lettura: Windows non ha permesso a FMLibreEditor di scrivere nel gioco.",
@@ -1334,6 +1346,7 @@ export const it: Strings = {
     hint: "Dalla più recente. Una modifica si può annullare solo finché il gioco ha ancora il valore che ha scritto.",
     continueHint: "Il gioco mostra una modifica quando va avanti: premi Continua nel gioco.",
     swappedWith: (name) => `Scambiato con ${name}`,
+    onLoan: "In prestito",
     released: (name) => `${name} svincolato`,
     fee: (amount) => `Costo ${amount}`,
     optionRemoved: (amount) => `Diritto di riscatto (${amount}) tolto`,
@@ -1857,6 +1870,55 @@ export const it: Strings = {
     hint: "Nel gioco non cambia nulla finché non premi Rendi definitivo.",
     confirm: "Rendi definitivo",
     confirming: "In corso…",
+    cancel: "Annulla",
+  },
+
+  loanStart: {
+    button: "Presta",
+    buttonTitle: "Mandalo in prestito a qualsiasi club, alle condizioni che scegli",
+    title: "Cedi in prestito",
+    from: "Da",
+    to: "In prestito a",
+    pickAnother: "Scegli un altro club",
+    pickClub: "Scegli il club in cui va.",
+    termsHeading: "Condizioni",
+    until: "Fino al",
+    untilHint: (contractEnd) =>
+      contractEnd === null
+        ? "Di base la fine della stagione nel gioco."
+        : `Di base la fine della stagione nel gioco, o del suo contratto (${contractEnd}) se viene prima. Non oltre.`,
+    wage: "Stipendio pagato dal club",
+    canBeRecalled: "Il suo club può richiamarlo",
+    canBeTerminated: "Il prestito può essere interrotto prima",
+    cupMatches: "Può giocare le partite di coppa",
+    againstOwnClub: "Può giocare contro il suo club",
+    checking: "Verifica…",
+    terms: (until, wage) => `Fino al ${until}, con ${wage} a settimana`,
+    doesHeading: "Cosa fa",
+    does: [
+      "Gioca nella prima squadra del club fino all'ultimo giorno del prestito, con un contratto di prestito che il gioco tratta come suo",
+      "Il suo contratto con il suo club resta com'è, e il suo club lo risulta in prestito",
+      "Nessun diritto di riscatto e nessun pagamento mensile",
+      "Passato l'ultimo giorno, il gioco chiude il prestito e lui torna al suo club",
+      "Compare in Modifiche, dove un annullamento toglie il prestito",
+    ],
+    hint: "Nel gioco non cambia nulla finché non premi Presta.",
+    confirm: "Presta",
+    confirming: "Prestito in corso…",
+    cancel: "Annulla",
+  },
+
+  shortcut: {
+    title: "Scorciatoia della finestra sopra il gioco",
+    current: (shortcut) => `Ora: ${shortcut}`,
+    none: "Nessuna scorciatoia funziona ora: un'altra app usa quella scelta. Scegline un'altra.",
+    prompt: (modifiers) => `Premi i tasti: uno tra ${modifiers}, e una lettera, una cifra o un tasto F`,
+    hint: "Funziona da qualsiasi app, anche con FM a schermo intero, e l'app la ricorda.",
+    needsModifier: (modifiers) => `Tieni premuto uno tra ${modifiers} con il tasto.`,
+    failed: (reason) => `Quella scorciatoia non si può usare: ${reason}. La precedente funziona ancora.`,
+    reset: (shortcut) => `Torna a ${shortcut}`,
+    save: "Salva",
+    saving: "Salvataggio…",
     cancel: "Annulla",
   },
 

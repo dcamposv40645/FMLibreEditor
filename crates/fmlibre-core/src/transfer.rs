@@ -335,6 +335,11 @@ pub enum MoveError {
     },
     /// The editor cannot read the in-game date, which a new contract starts on.
     NoDate,
+    /// The layout does not say what starting a loan takes in this game (see [`crate::profile::LoanStartLayout`]).
+    NoLoanStart,
+    /// The game holds no loan the editor can model a new one on: none of its loan contracts is a running loan with no
+    /// option to buy.
+    NoLoanModel,
     /// The editor does not make this change to this game: see [`Lock`].
     Locked(Lock),
     Memory(fmlibre_mem::Error),
@@ -468,6 +473,12 @@ impl fmt::Display for MoveError {
                 f.write_str("none of this club's staff has a full contract of their own to model a new one on")
             }
             MoveError::NoDate => f.write_str("the editor cannot read the in-game date, which a new contract starts on"),
+            MoveError::NoLoanStart => {
+                f.write_str("the editor does not know how to start a loan in this version of the game yet")
+            }
+            MoveError::NoLoanModel => f.write_str(
+                "the game holds no running loan without an option to buy for the editor to model a new one on",
+            ),
             MoveError::Locked(lock) => write!(f, "nothing was changed: {lock}"),
             MoveError::Memory(err) => write!(f, "{err}"),
         }
@@ -529,6 +540,8 @@ impl Coded for MoveError {
             MoveError::NoModel => "sign.noModel",
             MoveError::NoStaffModel { .. } => "staff.noModel",
             MoveError::NoDate => "sign.noDate",
+            MoveError::NoLoanStart => "loan.notMapped",
+            MoveError::NoLoanModel => "loan.noModel",
             MoveError::Locked(lock) => lock.code(),
             MoveError::Memory(err) => err.code(),
         }

@@ -521,6 +521,7 @@ export const en = {
     "facilities.corporate": "Corporate facilities",
     "finance.balance": "Balance",
     "finance.transfer_budget": "Transfer budget",
+    "finance.transfer_revenue": "Percentage of transfer revenue made available",
     "finance.wage_budget": "Wage budget",
     "finance.total_wage_budget": "Total wage budget",
     "stadium.capacity": "Stadium capacity",
@@ -1002,6 +1003,8 @@ export const en = {
     finances: "Finances",
     balance: "Balance",
     transferBudget: "Transfer budget",
+    /** The share of each player sale's fee the board adds to the transfer budget, a percentage. */
+    transferRevenue: "Transfer revenue made available",
     wageBudget: "Wage budget (spending)",
     totalWageBudget: "Total wage budget",
     ticketPrice: "Average ticket price",
@@ -1099,6 +1102,19 @@ export const en = {
     settingsLabel: "Settings",
     languageLabel: "Language",
     currencyLabel: "Currency",
+    /** The third list: what the app does as the game goes on. */
+    gameLabel: "Game",
+    /** Reading the game again by itself once it moves on (see autoRefresh.ts). */
+    followGame: "Follow the game",
+    followGameTitle:
+      "Read the game again by itself once it moves on a day or loads another save, after any dialog or edit you have open",
+    /** Showing the overlay, a compact window over the game (see overlay.ts). */
+    overlay: "Overlay over the game",
+    overlayTitle: (shortcut: string | null) =>
+      shortcut === null
+        ? "Show or hide a compact window of the editor over FM"
+        : `Show or hide a compact window of the editor over FM, from anywhere: ${shortcut}`,
+    overlayShortcut: "Change the overlay's shortcut…",
 
     // The note at the foot of the sidebar; which one shows depends on the connection (see `ConnectionInfo.editable`).
     /** Connected, and the game was opened for writing. */
@@ -1351,6 +1367,8 @@ export const en = {
     continueHint: "The game shows a change once it moves on: press Continue in the game.",
     /** Under a move to another club that was a swap: the player who went the other way. */
     swappedWith: (name: string) => `Swapped with ${name}`,
+    /** Under a move that was a loan: he went on loan, not for good. */
+    onLoan: "On loan",
     /** Under a move that released a player of the new club to make room: that player. */
     released: (name: string) => `${name} released`,
     /** Under a transfer that had a fee: the amount, written out. */
@@ -2004,6 +2022,63 @@ export const en = {
     hint: "Nothing changes in the game until you press Make permanent.",
     confirm: "Make permanent",
     confirming: "Making it permanent…",
+    cancel: "Cancel",
+  },
+
+  /** Sending a player on loan: the button beside Transfer in his profile, and the dialog it opens. */
+  loanStart: {
+    button: "Loan out",
+    buttonTitle: "Send him on loan to any club, on the terms you choose",
+    title: "Send on loan",
+    /** His club, and the club he goes to. */
+    from: "From",
+    to: "On loan to",
+    pickAnother: "Pick another club",
+    pickClub: "Pick the club he goes to.",
+    termsHeading: "Terms",
+    until: "Until",
+    /** Under the loan's last day; `contractEnd` is the end of his contract, if it has one. */
+    untilHint: (contractEnd: string | null) =>
+      contractEnd === null
+        ? "By default the end of the season in the game."
+        : `By default the end of the season in the game, or of his contract (${contractEnd}) if that comes first. Not past it.`,
+    wage: "Wage the club pays",
+    canBeRecalled: "His club can recall him",
+    canBeTerminated: "The loan can be ended early",
+    cupMatches: "He can play in cup matches",
+    againstOwnClub: "He can play against his own club",
+    checking: "Checking…",
+    /** The plan's second line: the loan's last day and wage, written out. */
+    terms: (until: string, wage: string) => `Until ${until}, on ${wage} a week`,
+    doesHeading: "What it does",
+    /** One line each. */
+    does: [
+      "He plays for the club's first team until the loan's last day, under a loan contract the game keeps as its own",
+      "His contract with his own club stays as it is, and his club lists him as out on loan",
+      "No option to buy and no monthly fees",
+      "When the last day is over, the game ends the loan and he is back at his club",
+      "Listed under Changes, where one undo takes the loan back",
+    ],
+    hint: "Nothing changes in the game until you press Loan out.",
+    confirm: "Loan out",
+    confirming: "Sending on loan…",
+    cancel: "Cancel",
+  },
+
+  /** Choosing the overlay's shortcut: the dialog the settings menu opens (see ShortcutDialog.tsx). */
+  shortcut: {
+    title: "Overlay shortcut",
+    /** The shortcut now, as the system writes it. */
+    current: (shortcut: string) => `Now: ${shortcut}`,
+    none: "No shortcut works now: another app holds the one chosen. Pick another.",
+    /** In the box that takes the keys; `modifiers` are the system's own, e.g. "⌃ ⌥ ⇧ ⌘". */
+    prompt: (modifiers: string) => `Press the keys: one of ${modifiers}, and a letter, digit or F-key`,
+    hint: "It works from any app, FM in fullscreen too, and the app keeps it for the next start.",
+    needsModifier: (modifiers: string) => `Hold one of ${modifiers} with the key.`,
+    failed: (reason: string) => `That shortcut cannot be used: ${reason}. The old one still works.`,
+    reset: (shortcut: string) => `Back to ${shortcut}`,
+    save: "Save",
+    saving: "Saving…",
     cancel: "Cancel",
   },
 

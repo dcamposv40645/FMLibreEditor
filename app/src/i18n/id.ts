@@ -574,6 +574,7 @@ export const id: Strings = {
     "facilities.corporate": "Fasilitas korporat",
     "finance.balance": "Saldo",
     "finance.transfer_budget": "Anggaran transfer",
+    "finance.transfer_revenue": "Persentase pendapatan transfer yang tersedia",
     "finance.wage_budget": "Anggaran gaji",
     "finance.total_wage_budget": "Total anggaran gaji",
     "stadium.capacity": "Kapasitas stadion",
@@ -969,6 +970,7 @@ export const id: Strings = {
     finances: "Keuangan",
     balance: "Saldo",
     transferBudget: "Anggaran transfer",
+    transferRevenue: "Pendapatan transfer yang tersedia",
     wageBudget: "Anggaran gaji (pengeluaran)",
     totalWageBudget: "Total anggaran gaji",
     ticketPrice: "Rerata harga tiket",
@@ -1049,6 +1051,16 @@ export const id: Strings = {
     settingsLabel: "Pengaturan",
     languageLabel: "Bahasa",
     currencyLabel: "Mata uang",
+    gameLabel: "Game",
+    followGame: "Ikuti game",
+    followGameTitle:
+      "Baca ulang game sendiri saat game maju sehari atau memuat simpanan lain, setelah dialog atau suntingan yang terbuka selesai",
+    overlay: "Jendela di atas game",
+    overlayTitle: (shortcut: string | null) =>
+      shortcut === null
+        ? "Tampilkan atau sembunyikan jendela ringkas editor di atas FM"
+        : `Tampilkan atau sembunyikan jendela ringkas editor di atas FM, dari mana saja: ${shortcut}`,
+    overlayShortcut: "Ubah pintasan jendela…",
 
     noteEditable: "Editan baru sampai ke game saat kamu menerapkannya. Cadangkan save-mu lebih dulu.",
     noteReadOnly: "Hanya baca: Windows tidak mengizinkan FMLibreEditor menulis ke game.",
@@ -1227,6 +1239,7 @@ export const id: Strings = {
     hint: "Terbaru di atas. Perubahan hanya bisa diurungkan selama game masih menyimpan nilai yang ditulisnya.",
     continueHint: "Game menampilkan perubahan setelah waktu berjalan: tekan Lanjutkan di game.",
     swappedWith: (name: string) => `Ditukar dengan ${name}`,
+    onLoan: "Dipinjamkan",
     released: (name: string) => `${name} dilepas`,
     fee: (amount: string) => `Biaya ${amount}`,
     optionRemoved: (amount: string) => `Opsi beli (${amount}) dihapus`,
@@ -1718,6 +1731,55 @@ export const id: Strings = {
     hint: "Tidak ada yang berubah di game sampai kamu menekan Permanenkan.",
     confirm: "Permanenkan",
     confirming: "Mempermanenkan…",
+    cancel: "Batal",
+  },
+
+  loanStart: {
+    button: "Pinjamkan",
+    buttonTitle: "Pinjamkan dia ke klub mana pun, dengan syarat pilihanmu",
+    title: "Pinjamkan pemain",
+    from: "Dari",
+    to: "Dipinjamkan ke",
+    pickAnother: "Pilih klub lain",
+    pickClub: "Pilih klub tujuannya.",
+    termsHeading: "Syarat",
+    until: "Sampai",
+    untilHint: (contractEnd: string | null) =>
+      contractEnd === null
+        ? "Bawaannya akhir musim di game."
+        : `Bawaannya akhir musim di game, atau akhir kontraknya (${contractEnd}) jika lebih dulu. Tidak lewat dari itu.`,
+    wage: "Gaji yang dibayar klub",
+    canBeRecalled: "Klubnya bisa menariknya kembali",
+    canBeTerminated: "Peminjaman bisa diakhiri lebih awal",
+    cupMatches: "Boleh main di laga piala",
+    againstOwnClub: "Boleh main melawan klubnya sendiri",
+    checking: "Memeriksa…",
+    terms: (until: string, wage: string) => `Sampai ${until}, gaji ${wage} per pekan`,
+    doesHeading: "Yang dilakukan",
+    does: [
+      "Dia bermain untuk tim utama klub sampai hari terakhir peminjaman, dengan kontrak pinjaman yang dianggap game sebagai miliknya sendiri",
+      "Kontraknya dengan klubnya sendiri tetap, dan klubnya mencatatnya sedang dipinjamkan",
+      "Tanpa opsi pembelian dan tanpa biaya bulanan",
+      "Setelah hari terakhir lewat, game mengakhiri peminjaman dan dia kembali ke klubnya",
+      "Tercatat di Perubahan, satu kali urungkan membatalkan peminjaman",
+    ],
+    hint: "Tidak ada yang berubah di game sampai kamu menekan Pinjamkan.",
+    confirm: "Pinjamkan",
+    confirming: "Meminjamkan…",
+    cancel: "Batal",
+  },
+
+  shortcut: {
+    title: "Pintasan jendela di atas game",
+    current: (shortcut: string) => `Sekarang: ${shortcut}`,
+    none: "Tidak ada pintasan yang berfungsi sekarang: aplikasi lain memakai yang dipilih. Pilih yang lain.",
+    prompt: (modifiers: string) => `Tekan tombolnya: salah satu dari ${modifiers}, dan huruf, angka, atau tombol F`,
+    hint: "Berfungsi dari aplikasi mana pun, juga saat FM layar penuh, dan aplikasi mengingatnya.",
+    needsModifier: (modifiers: string) => `Tahan salah satu dari ${modifiers} bersama tombolnya.`,
+    failed: (reason: string) => `Pintasan itu tidak bisa dipakai: ${reason}. Yang lama masih berfungsi.`,
+    reset: (shortcut: string) => `Kembali ke ${shortcut}`,
+    save: "Simpan",
+    saving: "Menyimpan…",
     cancel: "Batal",
   },
 

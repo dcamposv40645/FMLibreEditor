@@ -1,6 +1,14 @@
 // What the inputs of an edit session hold and what Apply would write. No React here: the components only draw it.
 
-import { dateFromNumber, editFor, isoFromNumber, numberFromIso, shownRange, shownValue } from "./editing";
+import {
+  dateFromNumber,
+  editFor,
+  isoFromNumber,
+  isWholePercent,
+  numberFromIso,
+  shownRange,
+  shownValue,
+} from "./editing";
 import { formatAmount, formatDate, formatNumber, formatPercent } from "./format";
 import { choiceLabel, editText, profileText } from "./labels";
 import type { EditField, FieldEdit, FieldValues } from "./types";
@@ -54,7 +62,7 @@ export function valueText(field: EditField | undefined, shown: number): string {
   if (field !== undefined && shown === field.blank) {
     return editText.none;
   }
-  if (field?.scale === "percent") {
+  if (field?.scale === "percent" || isWholePercent(field)) {
     return formatPercent(shown);
   }
   switch (field?.kind) {
@@ -125,7 +133,7 @@ function invalidMessage(field: EditField, range: { min: number; max: number }): 
     // A checkbox and a select only hold what they offer, so no value of theirs needs correcting.
     return null;
   }
-  if (field.scale === "percent") {
+  if (field.scale === "percent" || isWholePercent(field)) {
     return editText.invalidPercentage(valueText(field, range.min), valueText(field, range.max));
   }
   switch (field.kind) {

@@ -67,7 +67,7 @@ pub use game::{GAME_EXE, GAME_PLUGIN, GameInfo, Storefront};
 pub use graphics::{GraphicsCounts, GraphicsIndex, Picture};
 pub use health::{Check, CheckResult, DateEvidence, DateFit, Health, Lock, STRUCTURE};
 pub use index::{Listed, SearchIndex};
-pub use loans::{LoanDetails, LoanEnd, LoanTerms};
+pub use loans::{LoanDetails, LoanEnd, LoanTerms, NewLoan};
 pub use locate::{
     DatePlace, Found, Place, date_candidates, holds_retirement_manager, retirement_guesses, search_retirement_manager,
 };

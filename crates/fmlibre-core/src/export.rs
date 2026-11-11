@@ -825,6 +825,7 @@ mod tests {
                 wage_budget: 975_000,
                 total_wage_budget: 1_060_000,
                 ticket_price: 31.456,
+                transfer_revenue: Some(60),
             }),
             stadium: Some(Stadium {
                 name: Some("Johan Cruijff ArenA".to_owned()),

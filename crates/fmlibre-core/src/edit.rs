@@ -225,6 +225,15 @@ impl Field {
         }
     }
 
+    /// A place of a club's full finance record that no layout names yet, taking `range` and nothing else, for the
+    /// probe to try a place a search found before it is mapped. It is written with the same checks as every field:
+    /// the club's object and record, the value now in `range`, and the value read back.
+    pub fn unmapped_club_finance(offset: u64, kind: Kind, range: RangeInclusive<i64>) -> Self {
+        Field::new(Entity::Club, format!("finance+{offset:#x}"), offset, kind, range)
+            .in_record(Place::ClubFinance)
+            .single()
+    }
+
     /// A field that is one `bit` of the byte at `offset`: 0 or 1.
     fn flag(entity: Entity, key: impl Into<String>, offset: u64, bit: u8) -> Self {
         Self { bit, ..Field::new(entity, key, offset, Kind::Flag, 0..=1) }
@@ -510,6 +519,11 @@ fn club_fields(layout: &Layout) -> Vec<Field> {
         money("finance.wage_budget", f.wage_budget, 0..=100_000_000),
         money("finance.total_wage_budget", f.total_wage_budget, 0..=100_000_000),
     ];
+    // A percentage the game keeps in an i32: as a u32 it writes the same bytes for 0..=100, and a value that does not
+    // read as one leaves the field alone.
+    if let Some(offset) = f.transfer_revenue {
+        fields.push(field("finance.transfer_revenue", offset, Kind::U32, 0..=100, Place::ClubFinance));
+    }
     // Capacities, as stored. The biggest stadium of the test save held 115,109.
     if let Some(s) = &layout.stadium {
         let seats = |key: &str, offset: u64| {
@@ -1263,9 +1277,11 @@ mod tests {
         let staff_attributes = layout.staff.attributes.len() + layout.staff.ratings.len();
         assert_eq!(staff.len(), 6 + staff_attributes + PERSONALITY.len() + 2);
         let clubs = fields(&layout, Entity::Club);
-        // Reputation, the 5 facilities and the 4 amounts of money; and the 4 capacities of the stadium where the layout
-        // knows it (Windows so far).
-        assert_eq!(clubs.len(), 10 + if layout.stadium.is_some() { 4 } else { 0 });
+        // Reputation, the 5 facilities and the 4 amounts of money; the 4 capacities of the stadium where the layout
+        // knows it (Windows so far), and the share of transfer revenue where it knows that (the Mac so far).
+        let stadium = if layout.stadium.is_some() { 4 } else { 0 };
+        let transfer_revenue = usize::from(layout.club_finance.transfer_revenue.is_some());
+        assert_eq!(clubs.len(), 10 + stadium + transfer_revenue);
         if layout.stadium.is_some() {
             assert_eq!(key(&clubs, "stadium.capacity").place, Place::Stadium);
             // A count of seats, not money, which the app shows with a pound sign.
@@ -1282,6 +1298,14 @@ mod tests {
         assert_eq!(key(&staff, "attribute.authority").scale, Scale::Plain);
         assert_eq!(key(&staff, "attribute.tactical").scale, Scale::Attribute);
         assert_eq!(key(&clubs, "finance.transfer_budget").place, Place::ClubFinance);
+        // Only on a system whose layout places it (the Mac's): a percentage in the full finance record.
+        if layout.club_finance.transfer_revenue.is_some() {
+            let share = key(&clubs, "finance.transfer_revenue");
+            assert_eq!((share.place, share.kind, share.min, share.max), (Place::ClubFinance, Kind::U32, 0, 100));
+            assert_eq!(share.plausible, 0..=100);
+        } else {
+            assert!(!clubs.iter().any(|f| f.key == "finance.transfer_revenue"));
+        }
         assert_eq!(key(&clubs, "reputation").place, Place::SeniorTeam);
 
         let target = Target { entity: Entity::Player, uid: 1, address: 0x1000, shift: 0xF8 };

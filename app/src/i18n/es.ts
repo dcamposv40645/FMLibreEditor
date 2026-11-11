@@ -601,6 +601,7 @@ export const es: Strings = {
     "facilities.corporate": "Instalaciones corporativas",
     "finance.balance": "Saldo",
     "finance.transfer_budget": "Presupuesto de fichajes",
+    "finance.transfer_revenue": "Porcentaje de ingresos por traspasos disponible",
     "finance.wage_budget": "Presupuesto salarial",
     "finance.total_wage_budget": "Presupuesto salarial total",
     "stadium.capacity": "Aforo del estadio",
@@ -1020,6 +1021,7 @@ export const es: Strings = {
     finances: "Finanzas",
     balance: "Saldo",
     transferBudget: "Presupuesto de fichajes",
+    transferRevenue: "Ingresos por traspasos disponibles",
     wageBudget: "Presupuesto salarial (gasto)",
     totalWageBudget: "Presupuesto salarial total",
     ticketPrice: "Precio medio de la entrada",
@@ -1103,6 +1105,16 @@ export const es: Strings = {
     settingsLabel: "Ajustes",
     languageLabel: "Idioma",
     currencyLabel: "Moneda",
+    gameLabel: "Juego",
+    followGame: "Seguir el juego",
+    followGameTitle:
+      "Volver a leer el juego solo cuando avanza un día o carga otra partida, al cerrar el diálogo o la edición abiertos",
+    overlay: "Ventana sobre el juego",
+    overlayTitle: (shortcut) =>
+      shortcut === null
+        ? "Muestra u oculta una ventana compacta del editor sobre FM"
+        : `Muestra u oculta una ventana compacta del editor sobre FM, desde cualquier sitio: ${shortcut}`,
+    overlayShortcut: "Cambiar el atajo de la ventana…",
 
     noteEditable:
       "Los cambios solo llegan al juego cuando los aplicas. Haz antes una copia de seguridad de tu partida.",
@@ -1302,6 +1314,7 @@ export const es: Strings = {
       "Los más recientes primero. Un cambio solo se puede deshacer mientras el juego conserve el valor que escribió.",
     continueHint: "El juego muestra un cambio cuando avanza: pulsa Continuar en el juego.",
     swappedWith: (name) => `Intercambiado por ${name}`,
+    onLoan: "Cedido",
     released: (name) => `Contrato rescindido: ${name}`,
     fee: (amount) => `Traspaso: ${amount}`,
     optionRemoved: (amount) => `Opción de compra (${amount}) eliminada`,
@@ -1837,6 +1850,55 @@ export const es: Strings = {
     hint: "Nada cambia en el juego hasta que pulsas Hacer definitiva.",
     confirm: "Hacer definitiva",
     confirming: "Haciéndola definitiva…",
+    cancel: "Cancelar",
+  },
+
+  loanStart: {
+    button: "Ceder",
+    buttonTitle: "Cédelo a cualquier club, en las condiciones que elijas",
+    title: "Ceder",
+    from: "De",
+    to: "Cedido a",
+    pickAnother: "Elegir otro club",
+    pickClub: "Elige el club al que va.",
+    termsHeading: "Condiciones",
+    until: "Hasta",
+    untilHint: (contractEnd) =>
+      contractEnd === null
+        ? "Por defecto, el final de la temporada en el juego."
+        : `Por defecto, el final de la temporada en el juego, o de su contrato (${contractEnd}) si llega antes. No más allá.`,
+    wage: "Sueldo que paga el club",
+    canBeRecalled: "Su club puede repescarlo",
+    canBeTerminated: "La cesión puede terminar antes",
+    cupMatches: "Puede jugar partidos de copa",
+    againstOwnClub: "Puede jugar contra su club",
+    checking: "Comprobando…",
+    terms: (until, wage) => `Hasta el ${until}, con ${wage} a la semana`,
+    doesHeading: "Qué hace",
+    does: [
+      "Juega en el primer equipo del club hasta el último día de la cesión, con un contrato de cesión que el juego trata como suyo",
+      "Su contrato con su club sigue igual, y su club lo tiene como cedido",
+      "Sin opción de compra ni pagos mensuales",
+      "Pasado el último día, el juego termina la cesión y vuelve a su club",
+      "Aparece en Cambios, donde deshacerlo una vez anula la cesión",
+    ],
+    hint: "Nada cambia en el juego hasta que pulses Ceder.",
+    confirm: "Ceder",
+    confirming: "Cediendo…",
+    cancel: "Cancelar",
+  },
+
+  shortcut: {
+    title: "Atajo de la ventana sobre el juego",
+    current: (shortcut) => `Ahora: ${shortcut}`,
+    none: "Ningún atajo funciona ahora: otra aplicación usa el elegido. Elige otro.",
+    prompt: (modifiers) => `Pulsa las teclas: una de ${modifiers}, y una letra, un número o una tecla F`,
+    hint: "Funciona desde cualquier aplicación, también con FM a pantalla completa, y la aplicación lo guarda.",
+    needsModifier: (modifiers) => `Mantén una de ${modifiers} con la tecla.`,
+    failed: (reason) => `Ese atajo no se puede usar: ${reason}. El anterior sigue funcionando.`,
+    reset: (shortcut) => `Volver a ${shortcut}`,
+    save: "Guardar",
+    saving: "Guardando…",
     cancel: "Cancelar",
   },
 

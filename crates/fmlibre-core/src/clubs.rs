@@ -200,6 +200,9 @@ pub struct Finances {
     pub total_wage_budget: i32,
     /// Average match ticket, pounds.
     pub ticket_price: f32,
+    /// The share of each player sale's fee the board adds to the transfer budget, 0–100; `None` where the layout does
+    /// not place it or it does not read as a percentage.
+    pub transfer_revenue: Option<u32>,
 }
 
 /// Reads the full profile of `club`; `None` when its object no longer belongs to it.
@@ -276,6 +279,10 @@ pub fn read_club_details(
             wage_budget: i32_at(f.wage_budget),
             total_wage_budget: i32_at(f.total_wage_budget),
             ticket_price: f32_at(&bytes, f.ticket_price),
+            transfer_revenue: f
+                .transfer_revenue
+                .and_then(|offset| u32::try_from(i32_at(offset)).ok())
+                .filter(|share| *share <= 100),
         });
     }
     Ok(Some(details))

@@ -15,6 +15,7 @@ import { inputState, summarize, type InputState, type Pending, type Typed } from
 import { applyEdits, readValues } from "./editing";
 import { fieldTable } from "./fieldTables";
 import { describeError } from "./format";
+import { useRefreshHold } from "./refreshHold";
 import { editText, fieldLabel } from "./labels";
 import type { EditField, Entity, FieldValues, LoggedChange } from "./types";
 
@@ -121,6 +122,8 @@ export function askToLeave(proceed: () => void): void {
 export function useProfileEditing(entity: Entity, uid: number): ProfileEditing {
   const { editable, onEdited } = useContext(EditorContext);
   const [stage, setStage] = useState<Stage>("view");
+  // Nor while a profile is edited: reading the game again would lose what was typed.
+  useRefreshHold(stage !== "view");
   const [fields, setFields] = useState<EditField[]>([]);
   // The values the game had when editing began or when the changes were last written, as stored.
   const [start, setStart] = useState<FieldValues>({});

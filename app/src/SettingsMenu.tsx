@@ -5,10 +5,12 @@
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { call } from "./api";
 import { CURRENCIES, currency, setCurrency, type Currency } from "./currency";
 import { currencyName, currencySymbolOf } from "./format";
 import { locale, setLocale, type Locale } from "./i18n";
 import { appText } from "./labels";
+import { ShortcutDialog, shortcutLabel } from "./ShortcutDialog";
 import { askToLeave } from "./useProfileEditing";
 
 /** The room the menu keeps between itself and its button. */
@@ -92,14 +94,30 @@ const CHECK = (
  * `setLocale` and `setCurrency`), which the app survives connected (see `current_connection`), so edits pending in an
  * open profile are asked about first. While the app is `busy` the button waits.
  */
-export function SettingsMenu({ busy }: { busy: boolean }) {
+interface SettingsMenuProps {
+  busy: boolean;
+  /** Whether the app reads the game again by itself once it moves on (see autoRefresh.ts), and what changes that. */
+  autoRefresh: boolean;
+  onAutoRefresh: (on: boolean) => void;
+  /** Shows the overlay over the game, or hides it (see overlay.ts); none where there is no overlay (a browser). */
+  onOverlay?: () => void;
+}
+
+export function SettingsMenu({ busy, autoRefresh, onAutoRefresh, onOverlay }: SettingsMenuProps) {
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
   const id = useId();
   const open = anchor !== null;
 
+  // The overlay's shortcut, read each time the menu opens: undefined until then, null when another app holds it.
+  const [shortcut, setShortcut] = useState<string | null | undefined>(undefined);
+  const [choosingShortcut, setChoosingShortcut] = useState(false);
+
   const show = () => {
+    if (onOverlay) {
+      void call<string | null>("overlay_shortcut").then(setShortcut, () => setShortcut(null));
+    }
     const box = button.current?.getBoundingClientRect();
     if (box) {
       setAnchor({ right: document.documentElement.clientWidth - box.right, bottom: box.bottom });
@@ -153,9 +171,13 @@ export function SettingsMenu({ busy }: { busy: boolean }) {
     }
   };
 
-  // The arrow keys go through both lists, as one.
+  // The arrow keys go through all the lists, as one.
   const keyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const items = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('[role="menuitemradio"]'));
+    const items = Array.from(
+      event.currentTarget.querySelectorAll<HTMLElement>(
+        '[role="menuitemradio"], [role="menuitemcheckbox"], [role="menuitem"]',
+      ),
+    );
     const at = items.findIndex((item) => item === document.activeElement);
     let next: HTMLElement | undefined;
     switch (event.key) {
@@ -266,9 +288,64 @@ export function SettingsMenu({ busy }: { busy: boolean }) {
                 </button>
               ))}
             </div>
+            <div role="group" aria-labelledby={`${id}-game`}>
+              <div id={`${id}-game`} className="settings-heading">
+                {appText.gameLabel}
+              </div>
+              <button
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={autoRefresh}
+                tabIndex={-1}
+                title={appText.followGameTitle}
+                onClick={() => onAutoRefresh(!autoRefresh)}
+              >
+                {appText.followGame}
+                {autoRefresh && CHECK}
+              </button>
+              {onOverlay && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabIndex={-1}
+                  title={appText.overlayTitle(shortcut ? shortcutLabel(shortcut) : null)}
+                  onClick={() => {
+                    close();
+                    onOverlay();
+                  }}
+                >
+                  {appText.overlay}
+                  {shortcut && <kbd className="settings-shortcut">{shortcutLabel(shortcut)}</kbd>}
+                </button>
+              )}
+              {onOverlay && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  tabIndex={-1}
+                  aria-haspopup="dialog"
+                  onClick={() => {
+                    close();
+                    setChoosingShortcut(true);
+                  }}
+                >
+                  {appText.overlayShortcut}
+                </button>
+              )}
+            </div>
           </div>,
           document.body,
         )}
+      {choosingShortcut && (
+        <ShortcutDialog
+          current={shortcut ?? null}
+          onChanged={setShortcut}
+          onClose={() => {
+            setChoosingShortcut(false);
+            button.current?.focus();
+          }}
+        />
+      )}
     </>
   );
 }

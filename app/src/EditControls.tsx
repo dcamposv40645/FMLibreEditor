@@ -3,7 +3,7 @@
 
 import { useEffect, useId, useRef, type CSSProperties, type ReactNode } from "react";
 import { valueText, type Pending } from "./editDraft";
-import { isoFromNumber, isStoredFiner } from "./editing";
+import { isoFromNumber, isStoredFiner, isWholePercent } from "./editing";
 import { currencySymbol } from "./format";
 import { changesText, choiceLabel, editText, fieldLabel, valueChange } from "./labels";
 import { useEditableField, useEditSession, type ProfileEditing, type Report } from "./useProfileEditing";
@@ -109,7 +109,7 @@ export function EditInput({ field, inFact = false }: { field: string; inFact?: b
       </span>
     );
   }
-  if (spec.scale === "percent") {
+  if (spec.scale === "percent" || isWholePercent(spec)) {
     return (
       <span className="edit-percent">
         {control}

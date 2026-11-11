@@ -9,6 +9,7 @@ import { keepPlaying } from "./editing";
 import { describeError, formatDate, formatNumber, formatMoney } from "./format";
 import { ATTRIBUTE_LABELS, editText, profileText, type AttributeKey } from "./labels";
 import { MedicalGroup } from "./MedicalGroup";
+import { LoanButton } from "./LoanDialog";
 import { MoveButton } from "./MoveDialog";
 import { ClubLogo, NationFlag, PersonFace, PICTURE_SIZE, WithPicture } from "./Picture";
 import { FEET, GOALKEEPING, HIDDEN, isGoalkeeper, MENTAL, PHYSICAL, TECHNICAL } from "./playerAttributes";
@@ -138,6 +139,13 @@ export function PlayerProfile({ player, version, onClose, comparison, modal }: P
                 contract={details?.contract ?? null}
                 ready={details !== undefined}
               />
+              {/* A player with a club who is not on loan already; it waits for his contract. */}
+              {info.club !== null && details?.loan == null && (
+                <LoanButton
+                  player={{ uid: info.uid, name: info.name, club: info.club, clubUid: info.clubUid }}
+                  contract={details?.contract ?? null}
+                />
+              )}
               {info.club !== null && (
                 <ReleaseButton player={{ uid: info.uid, name: info.name, club: info.club, clubUid: info.clubUid }} />
               )}

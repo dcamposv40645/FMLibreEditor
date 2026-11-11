@@ -1,4 +1,5 @@
 mod bridge;
+mod overlay;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -10,15 +11,15 @@ use fmlibre_core::{
     ClubMove, ClubSummary, Coded, EditError, Entity, EntityArrays, ExportFormat, ExportHeader, Exported, FeePlan,
     Field, FmDate, GAME_EXE, GAME_PLUGIN, GameInfo, GraphicsCounts, GraphicsIndex, HOMEGROWN_RULES, Healed, Health,
     Kind, LOAN_EXPIRES, LOAN_OPTION_FEE, Lifted, Listed, Loan, MoveError, MovePlan, MoveTerms, Nation, NewContract,
-    NewStaffContract, Operation, Paid, Picture, Planned, PlayerDetails, PlayerFilter, PlayerIndex, PlayerOrder,
-    PlayerSummary, ROLES, RelationSet, RetirementSet, Role, SCOUT_POSITIONS, ScoutError, ScoutPosition, ScoutRequest,
-    Scouted, SearchIndex, Session, SessionError, Skipped, SquadReport, StadiumName, StadiumRename, StaffChange,
-    StaffDetails, StaffFilter, StaffIndex, StaffOrder, StaffPlan, Target, Tie, TieTarget, find_game, nations,
-    sort_players, sort_staff,
+    NewLoan, NewStaffContract, Operation, Paid, Picture, Planned, PlayerDetails, PlayerFilter, PlayerIndex,
+    PlayerOrder, PlayerSummary, ROLES, RelationSet, RetirementSet, Role, SCOUT_POSITIONS, ScoutError, ScoutPosition,
+    ScoutRequest, Scouted, SearchIndex, Session, SessionError, Skipped, SquadReport, StadiumName, StadiumRename,
+    StaffChange, StaffDetails, StaffFilter, StaffIndex, StaffOrder, StaffPlan, Target, Tie, TieTarget, find_game,
+    nations, sort_players, sort_staff,
 };
 use fmlibre_mem::{Process, find_processes, is_current_process_elevated, list_modules};
 use serde::{Deserialize, Serialize};
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 
 /// The environment variable that names the graphics folder to read packs from, instead of
 /// `Documents\Sports Interactive\Football Manager 27\graphics` on Windows and
@@ -54,6 +55,9 @@ struct Connection {
     save: Option<String>,
     /// What the hold last found of the game's clubs, for the stadiums renamed in the editor.
     clubs_seen: ClubsSeen,
+    /// The in-game date when the lists were read, or last told to the window: a later one means the game has moved
+    /// on (or loaded another save), and the window reads it again (see `game_moved`).
+    read_on: Option<FmDate>,
 }
 
 /// How often the balances of frozen clubs, the attributes, energy and sharpness of frozen players, the attributes of
@@ -393,7 +397,21 @@ impl Connection {
         let begin = clubs_begin(&session).unwrap_or(0);
         let clubs_seen =
             ClubsSeen { same_save: Some(true), checked: Some(Instant::now()), ..ClubsSeen::unknown(begin) };
-        Ok(Self { session, players, staff, clubs, human_clubs, log, mass: None, next_id, frozen, save, clubs_seen })
+        let read_on = session.game_date();
+        Ok(Self {
+            session,
+            players,
+            staff,
+            clubs,
+            human_clubs,
+            log,
+            mass: None,
+            next_id,
+            frozen,
+            save,
+            clubs_seen,
+            read_on,
+        })
     }
 
     /// Freezes again what was frozen in this save before, as the file at `path` remembers it: the attributes, energy,
@@ -493,6 +511,17 @@ impl Connection {
     /// another) moves the clubs' array or objects, or gives the stadiums the names in the game's database. Once it is
     /// this one, clubs that moved are read again; while it is another, or none, nothing is written, and it is looked at
     /// again every little while.
+    /// The in-game date, when it is another than the one the lists were read on, or last told: the game has moved on.
+    /// Only a date that was read: while the game loads a save it reads as none, and reading the lists then would fail.
+    fn game_moved(&mut self) -> Option<FmDate> {
+        let now = self.session.game_date()?;
+        if self.read_on == Some(now) {
+            return None;
+        }
+        self.read_on = Some(now);
+        Some(now)
+    }
+
     fn hold_stadiums(&mut self) {
         if self.frozen.stadiums.is_empty() {
             return;
@@ -1110,7 +1139,14 @@ impl Connection {
             change: Change { entity: Entity::Staff, uid: done.member, field: field.to_owned(), old, new },
             undone_at: None,
             batch: None,
-            moved: moved.then_some(MovedClubs { from, to: Some(to), with: None, released: None, fee: None }),
+            moved: moved.then_some(MovedClubs {
+                from,
+                to: Some(to),
+                with: None,
+                released: None,
+                fee: None,
+                loan: false,
+            }),
             captaincy: None,
             tie: None,
             clause: None,
@@ -1152,6 +1188,13 @@ impl Connection {
     fn plan_permanent(&self, uid: u32, terms: MoveTerms) -> Result<MovePlan, Failure> {
         let player = self.players.get(uid).ok_or_else(|| not_found(Entity::Player, uid))?;
         Ok(self.session.plan_loan_permanent(player, terms, &self.human_clubs)?)
+    }
+
+    /// Works out sending the player `uid` on loan to the club `club` on `loan`.
+    fn plan_loan(&self, uid: u32, club: u32, loan: NewLoan) -> Result<MovePlan, Failure> {
+        let player = self.players.get(uid).ok_or_else(|| not_found(Entity::Player, uid))?;
+        let to = self.clubs.get(club).ok_or_else(|| not_found(Entity::Club, club))?;
+        Ok(self.session.plan_loan(player, to, loan, &self.human_clubs)?)
     }
 
     /// Works out releasing the player `uid` from his club.
@@ -1255,7 +1298,7 @@ impl Connection {
             change,
             undone_at: None,
             batch: None,
-            moved: Some(MovedClubs { from, to: Some(to), with, released, fee }),
+            moved: Some(MovedClubs { from, to: Some(to), with, released, fee, loan: false }),
             captaincy: None,
             tie: None,
             clause: None,
@@ -1264,6 +1307,19 @@ impl Connection {
             undo: Some(Undo::Move(before)),
         };
         self.log.push(logged.clone());
+        logged
+    }
+
+    /// Logs a loan just started, as a move from his club to the one he is on loan to, which an undo takes back: his
+    /// list row names the club he now plays for, as it does for every player on loan.
+    fn log_loan(&mut self, done: ClubMove) -> LoggedChange {
+        let mut logged = self.log_move(done, MoveTerms::default(), Vec::new(), None);
+        if let Some(moved) = logged.moved.as_mut() {
+            moved.loan = true;
+        }
+        if let Some(last) = self.log.last_mut() {
+            *last = logged.clone();
+        }
         logged
     }
 
@@ -1297,6 +1353,7 @@ impl Connection {
                 with: None,
                 released: None,
                 fee: None,
+                loan: false,
             }),
             captaincy: None,
             tie: None,
@@ -1712,6 +1769,9 @@ struct MovedClubs {
     /// The fee the buying club paid the selling one, in pounds, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     fee: Option<i64>,
+    /// He went on loan, from `from` to `to`, rather than for good.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    loan: bool,
 }
 
 /// A move as the log keeps it: the writes to undo, and what the list rows of the players it
@@ -1925,6 +1985,7 @@ fn app_bundle(exe: &Path) -> Option<&Path> {
 /// Windows the update's installer starts the new version itself (see app/src/update.ts).
 #[tauri::command]
 fn restart_app(app: tauri::AppHandle) {
+    overlay::before_exit(&app);
     app.restart();
 }
 
@@ -2960,6 +3021,59 @@ async fn make_loan_permanent(
     .await?
 }
 
+/// Checks that the player `uid` can go on loan to the club `club` on `loan`, and names the clubs and the loan's wage
+/// and last day; the error says why he cannot. Nothing is written.
+#[tauri::command]
+fn plan_loan(state: State<'_, AppState>, uid: u32, club: u32, loan: NewLoan) -> Result<MovePreview, Failure> {
+    let guard = state.0.lock()?;
+    let connection = guard.as_ref().ok_or_else(not_connected)?;
+    let plan = connection.plan_loan(uid, club, loan)?;
+    let name = |uid: u32| ClubName { uid, name: connection.club_name(uid) };
+    Ok(MovePreview {
+        from: Some(name(plan.from_club)),
+        to: name(plan.to_club),
+        fee: None,
+        contract: plan.contract,
+        staff_contract: None,
+    })
+}
+
+/// Sends the player `uid` on loan to the club `club` on `loan`, worked out again from the game as it is now, and logs
+/// it as a move between the two clubs, which one undo takes back. Off the window's thread: leaving a club a human
+/// manager runs takes a few seconds.
+#[tauri::command]
+async fn start_loan(app: tauri::AppHandle, uid: u32, club: u32, loan: NewLoan) -> Result<LoggedChange, Failure> {
+    tauri::async_runtime::spawn_blocking(move || -> Result<LoggedChange, Failure> {
+        let state = app.state::<AppState>();
+        let mut guard = state.0.lock()?;
+        let connection = guard.as_mut().ok_or_else(not_connected)?;
+        let plan = connection.plan_loan(uid, club, loan)?;
+        let done = connection.session.apply_club_move(&plan)?;
+        Ok(connection.log_loan(done))
+    })
+    .await?
+}
+
+/// Shows the overlay over the game, or hides it when it is in front (see overlay.rs).
+#[tauri::command]
+async fn toggle_overlay(app: tauri::AppHandle) -> Result<(), String> {
+    overlay::toggle(&app).map_err(|err| err.to_string())
+}
+
+/// The shortcut that shows the overlay, as the shortcut plugin writes it (e.g. "Alt+Shift+KeyE"); none when another app
+/// holds the one chosen.
+#[tauri::command]
+fn overlay_shortcut(app: tauri::AppHandle) -> Option<String> {
+    overlay::shortcut(&app)
+}
+
+/// Makes `shortcut` the one that shows the overlay, and keeps it for the next start; the error says why it cannot be
+/// (another app holds it, or it is not a shortcut), and then the old one stays.
+#[tauri::command]
+fn set_overlay_shortcut(app: tauri::AppHandle, shortcut: String) -> Result<String, String> {
+    overlay::set_shortcut(&app, &shortcut)
+}
+
 /// Checks that the player `uid` can be released from his club, and names it; the error says why he cannot. Nothing is
 /// written.
 #[tauri::command]
@@ -3603,6 +3717,16 @@ pub fn run() {
         // Downloads a new version, checks its signature against the key in tauri.conf.json and installs it: the
         // installer on Windows, the app in place of this one on macOS.
         .plugin(tauri_plugin_updater::Builder::new().build())
+        // The overlay's shortcut (see overlay.rs): shows the overlay over the game, or hides it.
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        let _ = overlay::toggle(app);
+                    }
+                })
+                .build(),
+        )
         .manage(AppState::default())
         .manage(Graphics::default())
         .setup(|app| {
@@ -3618,6 +3742,8 @@ pub fn run() {
                 None => user_data.ok().map(|folder| GraphicsIndex::default_root(&folder, 27)),
             };
             let data = std::env::var_os(DATA_FOLDER).map(PathBuf::from).or_else(|| app.path().app_data_dir().ok());
+            // The overlay's shortcut, as chosen before (see overlay.rs).
+            overlay::setup_shortcut(app.handle(), data.as_deref());
             app.manage(FrozenFile(data.map(|folder| folder.join(FROZEN_FILE))));
             let exports = std::env::var_os(EXPORTS_FOLDER)
                 .map(PathBuf::from)
@@ -3625,17 +3751,25 @@ pub fn run() {
             app.manage(ExportsFolder(exports));
             // macOS: after an update, the game is to load the bridge that came with this version.
             bridge::refresh(app.handle());
-            // Frozen money, attributes, energy and sharpness: every little while, what the game took is put back.
+            // Frozen money, attributes, energy and sharpness: every little while, what the game took is put back. And
+            // when the game has moved on a day (or loaded another save), the windows are told: `game-moved`, with the
+            // date, on which they read the game again (see App.tsx).
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 loop {
                     std::thread::sleep(FREEZE_EVERY);
                     let state = handle.state::<AppState>();
+                    let mut moved = None;
                     if let Ok(mut guard) = state.0.lock()
                         && let Some(connection) = guard.as_mut()
-                        && !connection.frozen.is_empty()
                     {
-                        connection.hold_frozen();
+                        if !connection.frozen.is_empty() {
+                            connection.hold_frozen();
+                        }
+                        moved = connection.game_moved();
+                    }
+                    if let Some(date) = moved {
+                        let _ = handle.emit("game-moved", date);
                     }
                 }
             });
@@ -3694,6 +3828,11 @@ pub fn run() {
             room_makers,
             move_player,
             plan_loan_permanent,
+            plan_loan,
+            start_loan,
+            toggle_overlay,
+            overlay_shortcut,
+            set_overlay_shortcut,
             make_loan_permanent,
             plan_release,
             release_player,
@@ -3728,8 +3867,26 @@ pub fn run() {
             bridge::set_up_bridge,
             bridge::remove_bridge
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        // The overlay's close button hides it; the main window's quits the app, which the hidden overlay would keep
+        // running otherwise. Before the app quits, the overlay is made a window AppKit can take apart (see overlay.rs).
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == overlay::LABEL {
+                    api.prevent_close();
+                    let _ = overlay::hide(window.app_handle());
+                } else {
+                    overlay::before_exit(window.app_handle());
+                    window.app_handle().exit(0);
+                }
+            }
+        })
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| {
+            if let tauri::RunEvent::ExitRequested { .. } = event {
+                overlay::before_exit(app);
+            }
+        });
 }
 
 #[cfg(test)]
