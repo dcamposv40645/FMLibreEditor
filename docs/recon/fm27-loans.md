@@ -219,3 +219,19 @@ With the probe, on the Barcelona save of 29 May 2033:
 - `loan-start 2002109237 814089 --until 2033-06-02`, played on to 4 June: the game ended the loan itself on its last
   day. Roc was back at Barcelona B, out of Girona's list, his record's place for a loan cleared (his B team contract
   kept), and the loan contract's slot free.
+
+### On Windows
+
+Read only, on Steam build 26385295 on Windows, on a Barcelona save of 14 June 2033 with 1,419 loans (`loans --raw`,
+`pools --holding`, `loan-holders`). What `[loan.start]` relies on is as on the Mac:
+
+- the loan contracts take 256-byte slots of the game's pool of them (`game_plugin.dll+0x581d198`, 1,696 used), and
+  the records of a player's other contracts 32-byte slots of theirs (`+0x58265b0`, 5,745 used): Pape Matar Sarr's
+  record, at his `+0x338`, is slot 391 of that pool, and its `+0x00` points at his loan contract;
+- in 1,125 loans the flags at `+0xB0` (as a `u16`) are those at `+0xB8` with bit 13 set, and in 1,347 `+0xD4` holds
+  the wage again; of the 71 loans that began in June, 67 read 0 in the counts at `+0xF4` and `+0xF8`;
+- `+0x70` to `+0x8F` are zero and `+0xA8` is 0xC8C in every loan. `+0x90` is -1 in all but 2, and `+0x9C` in all but
+  8: none of them places a loan started by the editor writes.
+
+Both pools had no free slot on that day, so `loan-start` would have been refused: it takes only a free slot. No loan
+has been started on Windows yet, so `layout.toml` has no `[loan.start]`.

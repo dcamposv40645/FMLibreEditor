@@ -12,6 +12,7 @@ import { locale, setLocale, type Locale } from "./i18n";
 import { appText } from "./labels";
 import { ShortcutDialog, shortcutLabel } from "./ShortcutDialog";
 import { askToLeave } from "./useProfileEditing";
+import { ZOOM_LEVELS, onZoom, setZoom, stepZoom, zoomKeys, zoomLevel, zoomPercent, zooms } from "./zoom";
 
 /** The room the menu keeps between itself and its button. */
 const GAP = 4;
@@ -114,13 +115,23 @@ export function SettingsMenu({ busy, autoRefresh, onAutoRefresh, onOverlay }: Se
   const [shortcut, setShortcut] = useState<string | null | undefined>(undefined);
   const [choosingShortcut, setChoosingShortcut] = useState(false);
 
+  // The window's zoom, which its own shortcuts change too (see zoom.ts).
+  const [zoom, setZoomShown] = useState(zoomLevel);
+  useEffect(() => onZoom(setZoomShown), []);
+
+  // Where the button is now: the menu hangs under it.
+  const anchorOfButton = (): Anchor | null => {
+    const box = button.current?.getBoundingClientRect();
+    return box ? { right: document.documentElement.clientWidth - box.right, bottom: box.bottom } : null;
+  };
+
   const show = () => {
     if (onOverlay) {
       void call<string | null>("overlay_shortcut").then(setShortcut, () => setShortcut(null));
     }
-    const box = button.current?.getBoundingClientRect();
-    if (box) {
-      setAnchor({ right: document.documentElement.clientWidth - box.right, bottom: box.bottom });
+    const at = anchorOfButton();
+    if (at) {
+      setAnchor(at);
     }
   };
 
@@ -136,7 +147,7 @@ export function SettingsMenu({ busy, autoRefresh, onAutoRefresh, onOverlay }: Se
     }
   }, [anchor]);
 
-  // A press elsewhere closes it, and so does a resize, which moves the button but not the menu.
+  // A press elsewhere closes it. A resize, a change of zoom too, moves the button: the menu follows it.
   useEffect(() => {
     if (!open) {
       return;
@@ -148,7 +159,7 @@ export function SettingsMenu({ busy, autoRefresh, onAutoRefresh, onOverlay }: Se
       }
       setAnchor(null);
     };
-    const resized = () => setAnchor(null);
+    const resized = () => setAnchor(anchorOfButton());
     document.addEventListener("pointerdown", pressed, true);
     window.addEventListener("resize", resized);
     return () => {
@@ -175,7 +186,7 @@ export function SettingsMenu({ busy, autoRefresh, onAutoRefresh, onOverlay }: Se
   const keyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const items = Array.from(
       event.currentTarget.querySelectorAll<HTMLElement>(
-        '[role="menuitemradio"], [role="menuitemcheckbox"], [role="menuitem"]',
+        '[role="menuitemradio"], [role="menuitemcheckbox"], [role="menuitem"]:not(:disabled)',
       ),
     );
     const at = items.findIndex((item) => item === document.activeElement);
@@ -288,6 +299,47 @@ export function SettingsMenu({ busy, autoRefresh, onAutoRefresh, onOverlay }: Se
                 </button>
               ))}
             </div>
+            {zooms && (
+              <div role="group" aria-labelledby={`${id}-zoom`}>
+                <div id={`${id}-zoom`} className="settings-heading">
+                  {appText.zoomLabel}
+                </div>
+                <div className="settings-zoom">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    tabIndex={-1}
+                    aria-label={appText.zoomOut}
+                    title={`${appText.zoomOut} (${zoomKeys("−")})`}
+                    disabled={zoom === ZOOM_LEVELS[0]}
+                    onClick={() => stepZoom(-1)}
+                  >
+                    −
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    tabIndex={-1}
+                    aria-label={`${zoomPercent(zoom)}: ${appText.zoomReset}`}
+                    title={`${appText.zoomReset} (${zoomKeys("0")})`}
+                    onClick={() => setZoom(1)}
+                  >
+                    {zoomPercent(zoom)}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    tabIndex={-1}
+                    aria-label={appText.zoomIn}
+                    title={`${appText.zoomIn} (${zoomKeys("+")})`}
+                    disabled={zoom === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+                    onClick={() => stepZoom(1)}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            )}
             <div role="group" aria-labelledby={`${id}-game`}>
               <div id={`${id}-game`} className="settings-heading">
                 {appText.gameLabel}

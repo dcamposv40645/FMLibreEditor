@@ -135,7 +135,13 @@ export function PlayerProfile({ player, version, onClose, comparison, modal }: P
           {editing.editable && editing.stage === "view" && (
             <div className="move-actions">
               <MoveButton
-                player={{ uid: info.uid, name: info.name, club: info.club, clubUid: info.clubUid }}
+                player={{
+                  uid: info.uid,
+                  name: info.name,
+                  club: info.club,
+                  clubUid: info.clubUid,
+                  askingPrice: details?.askingPrice,
+                }}
                 contract={details?.contract ?? null}
                 ready={details !== undefined}
               />

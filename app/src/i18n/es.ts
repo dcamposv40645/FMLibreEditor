@@ -1105,6 +1105,10 @@ export const es: Strings = {
     settingsLabel: "Ajustes",
     languageLabel: "Idioma",
     currencyLabel: "Moneda",
+    zoomLabel: "Zoom",
+    zoomIn: "Ampliar",
+    zoomOut: "Reducir",
+    zoomReset: "Volver al 100 %",
     gameLabel: "Juego",
     followGame: "Seguir el juego",
     followGameTitle:
@@ -1583,10 +1587,17 @@ export const es: Strings = {
     feeHeading: "Precio",
     fee: "Precio del traspaso",
     feeHint: "Déjalo vacío para un traspaso gratuito",
+    askedLabel: "Lo que pide el club",
+    askingPrice: (amount) => `Precio de venta: ${amount}`,
+    noAskingPrice: "El club no ha fijado un precio de venta",
+    releaseClause: (amount) => `Cláusula de rescisión: ${amount}`,
+    useAmount: "Usar",
+    useAmountTitle: (amount) => `Poner ${amount} como traspaso`,
     feeInvalid: (max) => `Introduce un importe entero, de 0 a ${max}`,
     pays: (club, fee, balance, budget) =>
       `${club} paga ${fee}: saldo ${balance}${budget === null ? "" : `, presupuesto de fichajes ${budget}`}`,
-    receives: (club, fee, balance) => `${club} recibe ${fee}: saldo ${balance}`,
+    receives: (club, fee, balance, budget) =>
+      `${club} recibe ${fee}: saldo ${balance}${budget === null ? "" : `, presupuesto de fichajes ${budget}`}`,
     noFinances: (club) => `${club} no tiene finanzas en el juego: su dinero no cambia`,
 
     // El contrato
@@ -1958,6 +1969,10 @@ export const es: Strings = {
     inspireAll: "Motivar a todos",
     inspireAllTitle: "Poner la moral de todos los jugadores de este equipo en 20, la más alta",
     refreshAll: "Recuperar a todos",
+    refreshPlayer: (name) => `Refrescar a ${name}`,
+    resizeLabel: "Cambiar el tamaño de los controles del equipo",
+    resizeTitle: "Arrastra para ver más jugadores; doble clic para volver a ver todos los controles",
+    refreshPlayerTitle: "Poner su energía y su ritmo de competición al 100 % y dejarlo descansar del todo (cansancio -500)",
     refreshAllTitle:
       "Poner la energía y el ritmo de competición de todos los jugadores de este equipo al 100 % y dejarlos " +
       "totalmente descansados (fatiga -500)",

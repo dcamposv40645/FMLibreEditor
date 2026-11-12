@@ -1423,14 +1423,16 @@ pub struct Amounts {
 pub struct ClubMoney {
     pub club: u32,
     pub balance: Amounts,
-    /// The buying club's transfer budget, which the fee comes out of too, down to nothing; none when the board has
-    /// set none.
+    /// The buying club's transfer budget, which the fee comes out of too, down to nothing; or the selling club's,
+    /// which takes the share of the fee its board makes available (`finance.transfer_revenue`). None when the board
+    /// has set no budget, or for a seller whose share is not known.
     pub transfer_budget: Option<Amounts>,
 }
 
 /// What paying a transfer fee does, worked out from the game as it is now: the buying club pays it out of its balance
-/// and its transfer budget, and the selling club's balance takes it. A club the game keeps no full finances for has
-/// none here, and its money stays as it is.
+/// and its transfer budget, and the selling club's balance takes it, its transfer budget the share its board makes
+/// available, as the game's own sales do. A club the game keeps no full finances for has none here, and its money
+/// stays as it is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FeePlan {
@@ -1446,6 +1448,16 @@ pub struct Paid {
     target: Target,
     field: Field,
     change: i64,
+}
+
+/// What a sale for `fee` does to the selling club's transfer budget `left`: it takes the share `percent` of the fee
+/// its board makes available, rounded down, at most `max`. None when the board has set no budget (-1) or the share
+/// is not a percentage, and the budget is left alone.
+fn sale_budget(left: i64, fee: i64, percent: i64, max: i64) -> Option<Amounts> {
+    if left < 0 || !(0..=100).contains(&percent) {
+        return None;
+    }
+    Some(Amounts { before: left, after: (left + fee * percent / 100).min(max) })
 }
 
 impl Session {
@@ -1472,11 +1484,21 @@ impl Session {
             }
             None => None,
         };
-        let seller_money = read(seller, &balance)?.map(|before| ClubMoney {
-            club: seller.uid,
-            balance: Amounts { before, after: before + fee },
-            transfer_budget: None,
-        });
+        // The layouts that do not know where the share is kept leave the seller's transfer budget alone.
+        let share = self.field(Entity::Club, "finance.transfer_revenue").ok();
+        let seller_money = match read(seller, &balance)? {
+            Some(before) => {
+                let transfer_budget = match &share {
+                    Some(share) => match (read(seller, share)?, read(seller, &budget)?) {
+                        (Some(percent), Some(left)) => sale_budget(left, fee, percent, budget.max),
+                        _ => None,
+                    },
+                    None => None,
+                };
+                Some(ClubMoney { club: seller.uid, balance: Amounts { before, after: before + fee }, transfer_budget })
+            }
+            None => None,
+        };
         for money in [buyer_money, seller_money].into_iter().flatten() {
             if !balance.takes(money.balance.after) {
                 let (min, max) = (balance.min, balance.max);
@@ -1500,6 +1522,9 @@ impl Session {
         }
         if let Some(money) = plan.seller {
             steps.push((seller.target(), &balance, money.balance));
+            if let Some(gained) = money.transfer_budget {
+                steps.push((seller.target(), &budget, gained));
+            }
         }
         let mut paid = Vec::new();
         for (target, field, amounts) in steps {
@@ -1571,5 +1596,23 @@ mod tests {
         ];
         let order: Vec<u32> = suggestion_order(found).iter().map(|maker| maker.uid).collect();
         assert_eq!(order, [4, 5, 3, 6, 2, 1]);
+    }
+
+    #[test]
+    fn a_sale_adds_the_boards_share_of_the_fee_to_the_transfer_budget() {
+        // What `finance.transfer_budget` takes.
+        let max = 2_000_000_000;
+        // Barcelona's sale of Antonio Nusa: all of £101.7M, at 100%.
+        assert_eq!(
+            sale_budget(384_681_863, 101_700_000, 100, max),
+            Some(Amounts { before: 384_681_863, after: 486_381_863 })
+        );
+        assert_eq!(sale_budget(1_000, 999, 25, max), Some(Amounts { before: 1_000, after: 1_249 }));
+        assert_eq!(sale_budget(1_000, 5_000, 0, max), Some(Amounts { before: 1_000, after: 1_000 }));
+        assert_eq!(sale_budget(max - 10, 1_000, 100, max).map(|a| a.after), Some(max));
+        // No budget set, or a share that is not a percentage: left alone.
+        assert_eq!(sale_budget(-1, 1_000, 100, max), None);
+        assert_eq!(sale_budget(1_000, 1_000, 101, max), None);
+        assert_eq!(sale_budget(1_000, 1_000, -1, max), None);
     }
 }

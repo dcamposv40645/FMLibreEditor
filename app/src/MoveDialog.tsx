@@ -81,7 +81,12 @@ interface MovingPlayer {
   clubUid: number | null;
   /** For a member of staff, their job's code; null for one with no job. */
   job?: number | null;
+  /** The asking price his club has set, in pounds: null for none, undefined where the profile has not read it. */
+  askingPrice?: number | null;
 }
+
+/** The kind of the plain release clause, a minimum fee any club may pay (see `RELEASE_CLAUSE` in ClauseList.tsx). */
+const RELEASE_CLAUSE = 0;
 
 /** Who the dialog moves: a player, or a member of staff, who keeps his contract's terms and his job, or takes another. */
 type Kind = "player" | "staff";
@@ -94,6 +99,48 @@ interface MoveButtonProps {
   contract: Contract | null;
   /** Whether the profile has been read: until then there is no contract for the dialog to start from. */
   ready: boolean;
+}
+
+interface AskedFeesProps {
+  /** Pounds; null when the club has set none, undefined when it is not known. */
+  askingPrice: number | null | undefined;
+  /** The plain release clause of his contract, in pounds; null for none. */
+  releaseClause: number | null;
+  disabled: boolean;
+  /** Puts an amount, in pounds, in the fee. */
+  onUse: (pounds: number) => void;
+}
+
+/**
+ * What the selling club asks for him, under the fee: the asking price it has set, and the release clause of his
+ * contract, each with a button that puts it in the fee. The game works out what it demands in a negotiation when an
+ * offer is made, from his value and how much the club wants to keep him: that is not kept, so not shown.
+ */
+function AskedFees({ askingPrice, releaseClause, disabled, onUse }: AskedFeesProps) {
+  if (askingPrice === undefined && releaseClause === null) {
+    return null;
+  }
+  const line = (label: string, pounds: number) => (
+    <li>
+      <span>{label}</span>
+      <button
+        type="button"
+        className="move-use"
+        disabled={disabled}
+        title={text.useAmountTitle(formatMoney(pounds))}
+        onClick={() => onUse(pounds)}
+      >
+        {text.useAmount}
+      </button>
+    </li>
+  );
+  return (
+    <ul className="move-asked" aria-label={text.askedLabel}>
+      {askingPrice === null && <li className="muted">{text.noAskingPrice}</li>}
+      {askingPrice != null && line(text.askingPrice(formatMoney(askingPrice)), askingPrice)}
+      {releaseClause !== null && line(text.releaseClause(formatMoney(releaseClause)), releaseClause)}
+    </ul>
+  );
 }
 
 /** The player and the contract the dialog was opened for: the profile behind it cannot change while it is up. */
@@ -1111,6 +1158,15 @@ function MoveDialog({ player, kind, contract, onMoved, onClose }: MoveDialogProp
                   </p>
                 </div>
               </div>
+              <AskedFees
+                askingPrice={player.askingPrice}
+                releaseClause={
+                  contract?.clauses.find((clause) => clause.kind === RELEASE_CLAUSE && clause.amount !== null)
+                    ?.amount ?? null
+                }
+                disabled={moving}
+                onUse={(pounds) => setFeeText(String(toShown(pounds)))}
+              />
             </section>
           )}
 

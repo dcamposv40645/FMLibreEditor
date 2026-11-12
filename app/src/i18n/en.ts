@@ -1102,6 +1102,11 @@ export const en = {
     settingsLabel: "Settings",
     languageLabel: "Language",
     currencyLabel: "Currency",
+    /** How large the window draws everything (see zoom.ts): the heading, its two buttons, and the level's hover text. */
+    zoomLabel: "Zoom",
+    zoomIn: "Zoom in",
+    zoomOut: "Zoom out",
+    zoomReset: "Back to 100%",
     /** The third list: what the app does as the game goes on. */
     gameLabel: "Game",
     /** Reading the game again by itself once it moves on (see autoRefresh.ts). */
@@ -1691,6 +1696,13 @@ export const en = {
     fee: "Transfer fee",
     /** Under the fee input while it can be sent, and while it cannot. */
     feeHint: "Leave it empty for a free transfer",
+    /** Under the fee: what the selling club asks for him, each with a button that puts it in the fee. */
+    askedLabel: "What the club asks",
+    askingPrice: (amount: string) => `Asking price: ${amount}`,
+    noAskingPrice: "The club has set no asking price",
+    releaseClause: (amount: string) => `Release clause: ${amount}`,
+    useAmount: "Use",
+    useAmountTitle: (amount: string) => `Put ${amount} in the fee`,
     /** `max` is the most a fee can be, as amounts are shown. */
     feeInvalid: (max: string) => `Enter a whole amount, from 0 to ${max}`,
     /**
@@ -1699,7 +1711,9 @@ export const en = {
      */
     pays: (club: string, fee: string, balance: string, budget: string | null) =>
       `${club} pays ${fee}: balance ${balance}${budget === null ? "" : `, transfer budget ${budget}`}`,
-    receives: (club: string, fee: string, balance: string) => `${club} receives ${fee}: balance ${balance}`,
+    /** `budget`: the transfer budget before and after it takes the share of the fee the board makes available. */
+    receives: (club: string, fee: string, balance: string, budget: string | null) =>
+      `${club} receives ${fee}: balance ${balance}${budget === null ? "" : `, transfer budget ${budget}`}`,
     /** For a club outside the leagues being played, which the game keeps no finances for. */
     noFinances: (club: string) => `${club} has no finances in the game: its money stays as it is`,
 
@@ -2165,6 +2179,12 @@ export const en = {
     inspireAllTitle: "Set the morale of every player in this team to 20, the highest, and remove their reasons to be unhappy",
     refreshAll: "Refresh all",
     refreshAllTitle: "Set the energy and match sharpness of every player in this team to 100%, and rest them fully (jadedness -500)",
+    /** The button of one row that does to him what Refresh all does to the team: its name, and its hover text. */
+    refreshPlayer: (name: string) => `Refresh ${name}`,
+    /** The line under the team's controls, dragged to give the table more room: its name, and its hover text. */
+    resizeLabel: "Resize the team's controls",
+    resizeTitle: "Drag to show more players; double-click to show all the controls again",
+    refreshPlayerTitle: "Set his energy and match sharpness to 100%, and rest him fully (jadedness -500)",
     maxAll: "Max attributes",
     maxAllTitle:
       "Set every attribute of every player in this team to its best: 20, and 1 for injury proneness and dirtiness",

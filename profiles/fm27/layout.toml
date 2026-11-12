@@ -449,6 +449,11 @@ youth_recruitment = 0x12D
 [club_finance]
 balance = 0x0C            # i32 pounds
 transfer_budget = 0x7C4   # i32 pounds
+# i32 0..100: the share of each player sale's fee the board adds to the transfer budget ("percentage of transfer
+# revenue made available" on the Finances screen). As on the Mac: on a Barcelona save of 14 June 2033 (Steam build
+# 26385295), `fmlibre-probe finance-find 1708 100` named it, the screen showing 100%, and `finance-try 1708 0x7d0 45
+# --restore` made the screen show 45% (see docs/recon/fm27-transfer-revenue.md).
+transfer_revenue = 0x7D0
 total_wage_budget = 0x808 # i32 pounds per week
 wage_budget = 0x814       # i32 pounds per week, the spending wage budget
 ticket_price = 0x864      # f32 pounds, average match ticket

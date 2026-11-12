@@ -5,6 +5,7 @@ import { dateFromNumber, numberFromDate } from "../editing";
 import { fold } from "../format";
 import { scoutingOverview, scoutingSuggest } from "./mockScouting";
 import type {
+  Amounts,
   ApplyReport,
   AttributeBound,
   ClubMoney,
@@ -1558,7 +1559,8 @@ const MAX_FEE = 2_000_000_000;
 
 /**
  * What paying `fee` does to the money of the clubs `to` (which pays it out of its balance and transfer budget) and
- * `from` (whose balance takes it), as the real command works it out; a club without finances is left alone.
+ * `from` (whose balance takes it, and its transfer budget the share its board makes available), as the real command
+ * works it out; a club without finances is left alone.
  */
 function feePlan(from: number, to: number, fee: number): FeePlan {
   if (!Number.isInteger(fee) || fee < 0 || fee > MAX_FEE) {
@@ -1576,11 +1578,22 @@ function feePlan(from: number, to: number, fee: number): FeePlan {
       return null;
     }
     const budget = now["finance.transfer_budget"];
+    const share = now["finance.transfer_revenue"];
+    const transferBudget = (): Amounts | null => {
+      if (budget === undefined || budget < 0) {
+        return null;
+      }
+      if (buying) {
+        return { before: budget, after: Math.max(0, budget - fee) };
+      }
+      return share !== undefined && share >= 0 && share <= 100
+        ? { before: budget, after: Math.min(MAX_FEE, budget + Math.floor((fee * share) / 100)) }
+        : null;
+    };
     return {
       club,
       balance: { before: balance, after: buying ? balance - fee : balance + fee },
-      transferBudget:
-        buying && budget !== undefined && budget >= 0 ? { before: budget, after: Math.max(0, budget - fee) } : null,
+      transferBudget: transferBudget(),
     };
   };
   return { fee, buyer: money(to, true), seller: money(from, false) };
@@ -2247,13 +2260,20 @@ function teamAction(clubUid: number, index: number, action: TeamAction): MassRep
     action === "inspire"
       ? [["morale", 20]]
       : action === "refresh"
-        ? [["condition", 10_000], ["match_sharpness", 10_000], ["jadedness", -500]]
+        ? REFRESHED
         : ATTRIBUTES.map(bestAttribute);
   for (const player of team.players) {
     setValues(player, values, report);
   }
   return report;
 }
+
+/** Rested, as Refresh all and `refresh_player` write it: full energy and sharpness, and jadedness at its least. */
+const REFRESHED: [string, number][] = [
+  ["condition", 10_000],
+  ["match_sharpness", 10_000],
+  ["jadedness", -500],
+];
 
 /** An attribute at its best, as Max attributes writes it: 20, stored as 100, and 1 (stored as 5) where lower is better. */
 const bestAttribute = (key: string): [string, number] => [
@@ -2955,6 +2975,16 @@ export async function mockInvoke<T>(command: string, args?: Record<string, unkno
       }
       const report: MassReport = { batch: nextMassId++, applied: 0, failed: [] };
       setValues(player, ATTRIBUTES.map(bestAttribute), report);
+      return report as T;
+    }
+    case "refresh_player": {
+      const uid = Number(args?.uid);
+      const player = players.find((p) => p.uid === uid);
+      if (!player) {
+        throw notFound("player", uid);
+      }
+      const report: MassReport = { batch: nextMassId++, applied: 0, failed: [] };
+      setValues(player, REFRESHED, report);
       return report as T;
     }
     case "max_staff_attributes": {

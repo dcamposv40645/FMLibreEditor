@@ -3932,6 +3932,30 @@ button.danger:hover:not(:disabled) {
   color: var(--danger);
 }
 
+/* Under the fee: what the selling club asks, each amount with the button that puts it in the fee. */
+.move-asked {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.move-asked li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+}
+
+.move-use {
+  min-height: 0;
+  padding: 1px 10px;
+  font-size: 12px;
+}
+
 /* What the move comes to, or why it cannot be made: a live region that is always there. A swap is two lines. */
 .move-plan {
   margin: 0;
@@ -4369,6 +4393,46 @@ button.danger:hover:not(:disabled) {
   min-height: 30rem;
 }
 
+/* The team's controls over the table, in a box whose height the line under it sets (see ResizableTop.tsx): drawn up,
+   it scrolls in itself and the table takes the room. */
+.squad-controls {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* The line under a box whose height it sets: a strip to take hold of, with a rule in it that the pointer lights. */
+.resize-line {
+  position: relative;
+  flex: none;
+  height: 10px;
+  margin: -6px 0;
+  cursor: row-resize;
+  touch-action: none;
+}
+
+.resize-line::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 48px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border-strong);
+  transform: translate(-50%, -50%);
+}
+
+.resize-line:hover::after,
+.resize-line:focus-visible::after {
+  background: var(--accent);
+}
+
+.resize-line:focus-visible {
+  outline: none;
+}
+
 /* The switch between the teams, how many players the shown one lists, and under them its captains. */
 .squad-summary {
   display: flex;
@@ -4616,6 +4680,17 @@ button.danger:hover:not(:disabled) {
   stroke-width: 3.2;
 }
 
+/* A row's buttons: rest him, then the captain menu. */
+.squad-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.squad-row-actions > button:first-child svg {
+  stroke-width: 2.4;
+}
+
 .squad-menu-toggle[aria-disabled="true"] {
   opacity: 0.55;
   cursor: default;
@@ -4684,6 +4759,28 @@ button.danger:hover:not(:disabled) {
   align-items: center;
   gap: 10px;
   width: 100%;
+}
+
+/* The zoom: smaller, the level (which goes back to 100%), larger, on one row. */
+.settings-zoom {
+  display: flex;
+  gap: 2px;
+}
+
+.settings-menu .settings-zoom button {
+  justify-content: center;
+  width: auto;
+  min-width: 2.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-menu .settings-zoom button:nth-child(2) {
+  flex: 1;
+}
+
+.settings-menu .settings-zoom button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 /* A currency's sign, in a box as wide as a flag so that the names line up. */

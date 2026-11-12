@@ -1146,6 +1146,10 @@ export const it: Strings = {
     settingsLabel: "Impostazioni",
     languageLabel: "Lingua",
     currencyLabel: "Valuta",
+    zoomLabel: "Zoom",
+    zoomIn: "Ingrandisci",
+    zoomOut: "Riduci",
+    zoomReset: "Torna al 100%",
     gameLabel: "Gioco",
     followGame: "Segui il gioco",
     followGameTitle:
@@ -1600,10 +1604,17 @@ export const it: Strings = {
     feeHeading: "Costo",
     fee: "Costo del trasferimento",
     feeHint: "Lascialo vuoto per un trasferimento a parametro zero",
+    askedLabel: "Quanto chiede il club",
+    askingPrice: (amount) => `Prezzo richiesto: ${amount}`,
+    noAskingPrice: "Il club non ha fissato un prezzo",
+    releaseClause: (amount) => `Clausola rescissoria: ${amount}`,
+    useAmount: "Usa",
+    useAmountTitle: (amount) => `Metti ${amount} come costo del cartellino`,
     feeInvalid: (max) => `Inserisci un importo intero, da 0 a ${max}`,
     pays: (club, fee, balance, budget) =>
       `${club} paga ${fee}: saldo ${balance}${budget === null ? "" : `, budget trasferimenti ${budget}`}`,
-    receives: (club, fee, balance) => `${club} incassa ${fee}: saldo ${balance}`,
+    receives: (club, fee, balance, budget) =>
+      `${club} incassa ${fee}: saldo ${balance}${budget === null ? "" : `, budget trasferimenti ${budget}`}`,
     noFinances: (club) => `${club} non ha finanze nel gioco: il suo denaro resta com'è`,
 
     // Il contratto
@@ -1977,6 +1988,10 @@ export const it: Strings = {
     inspireAllTitle:
       "Porta a 20, il massimo, il morale di ogni giocatore di questa squadra e toglie i suoi motivi di scontento",
     refreshAll: "Rigenera tutti",
+    refreshPlayer: (name) => `Rigenera ${name}`,
+    resizeLabel: "Ridimensiona i controlli della squadra",
+    resizeTitle: "Trascina per vedere più giocatori; doppio clic per rivedere tutti i controlli",
+    refreshPlayerTitle: "Porta al 100% la sua energia e forma partita e lo fa riposare del tutto (stanchezza -500)",
     refreshAllTitle:
       "Porta al 100% energia e forma partita di ogni giocatore di questa squadra e lo fa riposare del tutto " +
       "(stanchezza -500)",

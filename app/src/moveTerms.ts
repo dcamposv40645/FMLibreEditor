@@ -83,7 +83,7 @@ export function moneyLine(money: ClubMoney | null, club: string, fee: string, pa
     `${formatMoney(before)} → ${formatMoney(after)}`;
   return paying
     ? text.pays(club, fee, change(money.balance), money.transferBudget && change(money.transferBudget))
-    : text.receives(club, fee, change(money.balance));
+    : text.receives(club, fee, change(money.balance), money.transferBudget && change(money.transferBudget));
 }
 
 /** An input's class: outlined in the accent colour once it holds a change, and as an error while it cannot be sent. */

@@ -1051,6 +1051,10 @@ export const id: Strings = {
     settingsLabel: "Pengaturan",
     languageLabel: "Bahasa",
     currencyLabel: "Mata uang",
+    zoomLabel: "Zoom",
+    zoomIn: "Perbesar",
+    zoomOut: "Perkecil",
+    zoomReset: "Kembali ke 100%",
     gameLabel: "Game",
     followGame: "Ikuti game",
     followGameTitle:
@@ -1477,10 +1481,17 @@ export const id: Strings = {
     feeHeading: "Biaya",
     fee: "Biaya transfer",
     feeHint: "Kosongkan untuk transfer bebas biaya",
+    askedLabel: "Yang diminta klub",
+    askingPrice: (amount: string) => `Harga yang diminta: ${amount}`,
+    noAskingPrice: "Klub belum menetapkan harga",
+    releaseClause: (amount: string) => `Klausul pelepasan: ${amount}`,
+    useAmount: "Pakai",
+    useAmountTitle: (amount: string) => `Isi biaya dengan ${amount}`,
     feeInvalid: (max: string) => `Masukkan jumlah bulat, dari 0 sampai ${max}`,
     pays: (club: string, fee: string, balance: string, budget: string | null) =>
       `${club} membayar ${fee}: saldo ${balance}${budget === null ? "" : `, anggaran transfer ${budget}`}`,
-    receives: (club: string, fee: string, balance: string) => `${club} menerima ${fee}: saldo ${balance}`,
+    receives: (club: string, fee: string, balance: string, budget: string | null) =>
+      `${club} menerima ${fee}: saldo ${balance}${budget === null ? "" : `, anggaran transfer ${budget}`}`,
     noFinances: (club: string) => `${club} tidak punya data keuangan di game: uangnya tetap seperti sekarang`,
 
     wageInvalid: "Masukkan jumlah bulat, 0 atau lebih",
@@ -1834,6 +1845,10 @@ export const id: Strings = {
     inspireAllTitle:
       "Atur moral setiap pemain di tim ini ke 20, yang tertinggi, dan hapus alasan mereka untuk tidak senang",
     refreshAll: "Segarkan semua",
+    refreshPlayer: (name: string) => `Segarkan ${name}`,
+    resizeLabel: "Ubah ukuran kontrol tim",
+    resizeTitle: "Seret untuk menampilkan lebih banyak pemain; klik dua kali untuk menampilkan semua kontrol lagi",
+    refreshPlayerTitle: "Atur energi dan ketajaman bertandingnya ke 100%, dan istirahatkan sepenuhnya (keletihan -500)",
     refreshAllTitle:
       "Atur energi dan ketajaman bertanding setiap pemain di tim ini ke 100%, dan istirahatkan sepenuhnya (keletihan -500)",
     maxAll: "Maksimalkan atribut",

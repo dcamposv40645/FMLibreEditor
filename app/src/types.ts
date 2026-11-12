@@ -919,13 +919,18 @@ export interface Amounts {
 export interface ClubMoney {
   club: number;
   balance: Amounts;
-  /** The buying club's transfer budget, which the fee comes out of too, down to nothing; null when none is set. */
+  /**
+   * The buying club's transfer budget, which the fee comes out of too, down to nothing; or the selling club's, which
+   * takes the share of the fee its board makes available. Null when none is set, or for a seller whose share is not
+   * known.
+   */
   transferBudget: Amounts | null;
 }
 
 /**
  * What paying a transfer fee does: the buying club pays it out of its balance and transfer budget, and the selling
- * club's balance takes it. A club the game keeps no full finances for is null: its money stays as it is.
+ * club's balance takes it, its transfer budget the share its board makes available. A club the game keeps no full
+ * finances for is null: its money stays as it is.
  */
 export interface FeePlan {
   fee: number;

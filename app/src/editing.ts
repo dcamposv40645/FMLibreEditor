@@ -94,6 +94,12 @@ export const freezeTeam = (club: number, team: number, kind: FreezeKind, frozen:
 export const maxAttributes = (uid: number) => call<MassReport>("max_attributes", { uid });
 
 /**
+ * Rests the player `uid` as Refresh all rests a team: full energy and match sharpness, and jadedness at its least. The
+ * changes are logged as one batch, undone with `undoBatch`; `applied` counts them.
+ */
+export const refreshPlayer = (uid: number) => call<MassReport>("refresh_player", { uid });
+
+/**
  * Sets every attribute of the member of staff `id` to its best: 20. The changes are logged as one batch, undone with
  * `undoBatch`; `applied` counts them.
  */

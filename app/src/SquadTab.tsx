@@ -7,7 +7,16 @@
 import { useContext, useEffect, useMemo, useRef, useState, type Ref } from "react";
 import { Ability } from "./Ability";
 import { CaptainMenu } from "./CaptainMenu";
-import { changeLog, clubSquads, freezeTeam, setCaptain, teamAction, undoBatch, undoChange } from "./editing";
+import {
+  changeLog,
+  clubSquads,
+  freezeTeam,
+  refreshPlayer,
+  setCaptain,
+  teamAction,
+  undoBatch,
+  undoChange,
+} from "./editing";
 import { describeError, formatNumber } from "./format";
 import { intlLocale } from "./i18n";
 import { InfoTip } from "./InfoTip";
@@ -24,6 +33,7 @@ import {
 import { undoFailureLines } from "./massDraft";
 import { percentText } from "./MedicalGroup";
 import { PlayerDialog } from "./PlayerProfile";
+import { ResizableTop } from "./ResizableTop";
 import type { Loaded, PanelIds } from "./ProfileParts";
 import { SortHeader } from "./SortHeader";
 import type {
@@ -275,6 +285,19 @@ export function SquadTab({ clubUid, version, panel }: SquadTabProps) {
       };
     });
 
+  // One player rested as Refresh all rests the team, with the result and its undo under the buttons.
+  const refresh = (target: ClubTeam, player: SquadPlayer) =>
+    write(target.index, async () => {
+      const report = await refreshPlayer(player.uid);
+      return {
+        team: target.index,
+        message: `${player.name}: ${text.written(report.applied)}`,
+        failed: false,
+        problems: refusalLines(report.failed),
+        undo: report.applied > 0 ? () => undoBatch(report.batch) : null,
+      };
+    });
+
   // Freezing writes nothing to the game itself, but the squad is read again all the same, for its rows to say so.
   const freeze = (target: ClubTeam, kind: FreezeKind, on: boolean) =>
     write(target.index, async () => {
@@ -364,29 +387,36 @@ export function SquadTab({ clubUid, version, panel }: SquadTabProps) {
 
       {teams && team && (
         <>
-          <TeamSummary teams={teams} team={team} onTeam={setTeamIndex} />
+          <ResizableTop
+            storageKey="fmlibre.squadControls"
+            className="squad-controls"
+            label={text.resizeLabel}
+            title={text.resizeTitle}
+          >
+            <TeamSummary teams={teams} team={team} onTeam={setTeamIndex} />
 
-          <div className="squad-actions">
-            <TeamActions team={team} editable={editable} busy={busy} onAction={(action) => void act(team, action)} />
-            <p className="note squad-hint">{text.hint}</p>
-          </div>
+            <div className="squad-actions">
+              <TeamActions team={team} editable={editable} busy={busy} onAction={(action) => void act(team, action)} />
+              <p className="note squad-hint">{text.hint}</p>
+            </div>
 
-          <div className="squad-actions">
-            <TeamFreezes
-              team={team}
-              editable={editable}
+            <div className="squad-actions">
+              <TeamFreezes
+                team={team}
+                editable={editable}
+                busy={busy}
+                onFreeze={(kind, on) => void freeze(team, kind, on)}
+              />
+              <p className="note squad-hint">{text.freezeHint}</p>
+            </div>
+
+            <ResultLine
+              ref={resultBox}
+              result={shownResult}
               busy={busy}
-              onFreeze={(kind, on) => void freeze(team, kind, on)}
+              onUndo={(take) => void undo(team.index, take)}
             />
-            <p className="note squad-hint">{text.freezeHint}</p>
-          </div>
-
-          <ResultLine
-            ref={resultBox}
-            result={shownResult}
-            busy={busy}
-            onUndo={(take) => void undo(team.index, take)}
-          />
+          </ResizableTop>
 
           <div className="squad-table-wrap">
             <table className="grid squad-grid" aria-label={text.tableLabel(teamLabel(team))}>
@@ -415,6 +445,7 @@ export function SquadTab({ clubUid, version, panel }: SquadTabProps) {
                     editable={editable}
                     busy={busy}
                     onCaptain={(role) => void makeCaptain(team, role, player)}
+                    onRefresh={() => void refresh(team, player)}
                     onOpen={(from) => {
                       opener.current = from;
                       setShown(player);
@@ -720,15 +751,17 @@ interface SquadRowProps {
   editable: boolean;
   busy: boolean;
   onCaptain: (role: CaptainRole) => void;
+  /** Rests him as Refresh all rests the team. */
+  onRefresh: () => void;
   /** Opens his profile over the squad; `from` is the name, which takes focus back once it is closed. */
   onOpen: (from: HTMLButtonElement) => void;
 }
 
 /**
- * One player: his name, which opens his profile over the squad, with his tags and badge by it, his values, and the menu
- * that makes him captain.
+ * One player: his name, which opens his profile over the squad, with his tags and badge by it, his values, the button
+ * that rests him, and the menu that makes him captain.
  */
-function SquadRow({ player, role, editable, busy, onCaptain, onOpen }: SquadRowProps) {
+function SquadRow({ player, role, editable, busy, onCaptain, onRefresh, onOpen }: SquadRowProps) {
   const positions = player.positions.map(positionLabel);
   const fullName = player.fullName !== null && player.fullName !== player.name ? player.fullName : null;
   return (
@@ -769,9 +802,30 @@ function SquadRow({ player, role, editable, busy, onCaptain, onOpen }: SquadRowP
       <td className="num">{formatNumber(player.jadedness)}</td>
       <td className="num">{profileText.morale(player.morale)}</td>
       <td className="col-actions">
-        {player.playsHere && (
-          <CaptainMenu name={player.name} holds={role} editable={editable} busy={busy} onPick={onCaptain} />
-        )}
+        <div className="squad-row-actions">
+          <button
+            type="button"
+            className="icon-button squad-menu-toggle"
+            aria-label={text.refreshPlayer(player.name)}
+            // While a change is under way the button is only dimmed (aria-disabled): a disabled button loses focus.
+            aria-disabled={busy || undefined}
+            disabled={!editable}
+            title={text.refreshPlayerTitle}
+            onClick={() => {
+              if (!busy) {
+                onRefresh();
+              }
+            }}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+              <path d="M20 4v5h-5" />
+            </svg>
+          </button>
+          {player.playsHere && (
+            <CaptainMenu name={player.name} holds={role} editable={editable} busy={busy} onPick={onCaptain} />
+          )}
+        </div>
       </td>
     </tr>
   );

@@ -1070,6 +1070,10 @@ export const tr: Strings = {
     settingsLabel: "Ayarlar",
     languageLabel: "Dil",
     currencyLabel: "Para birimi",
+    zoomLabel: "Yakınlaştırma",
+    zoomIn: "Yakınlaştır",
+    zoomOut: "Uzaklaştır",
+    zoomReset: "%100'e dön",
     gameLabel: "Oyun",
     followGame: "Oyunu takip et",
     followGameTitle:
@@ -1522,10 +1526,17 @@ export const tr: Strings = {
     feeHeading: "Bedel",
     fee: "Bonservis bedeli",
     feeHint: "Bedelsiz transfer için boş bırakın",
+    askedLabel: "Kulübün istediği",
+    askingPrice: (amount) => `İstenen bedel: ${amount}`,
+    noAskingPrice: "Kulüp bir bedel belirlemedi",
+    releaseClause: (amount) => `Serbest kalma maddesi: ${amount}`,
+    useAmount: "Kullan",
+    useAmountTitle: (amount) => `Bedele ${amount} yaz`,
     feeInvalid: (max) => `0 ile ${max} arasında tam bir tutar girin`,
     pays: (club, fee, balance, budget) =>
       `${club} öder: ${fee}. Bakiye ${balance}${budget === null ? "" : `, transfer bütçesi ${budget}`}`,
-    receives: (club, fee, balance) => `${club} alır: ${fee}. Bakiye ${balance}`,
+    receives: (club, fee, balance, budget) =>
+      `${club} alır: ${fee}. Bakiye ${balance}${budget === null ? "" : `, transfer bütçesi ${budget}`}`,
     noFinances: (club) => `${club} için oyunda finans kaydı yok: parası değişmez`,
 
     // The contract
@@ -1890,6 +1901,10 @@ export const tr: Strings = {
     inspireAllTitle: "Bu takımdaki her oyuncunun moralini en yüksek değer olan 20'ye ayarla; mutsuzluk nedenlerini de kaldır",
     refreshAll: "Hepsini dinlendir",
     refreshAllTitle: "Bu takımdaki her oyuncunun enerjisini ve maç kondisyonunu %100'e ayarla, onları tamamen dinlendir (yorgunluk -500)",
+    refreshPlayer: (name) => `${name}: yenile`,
+    resizeLabel: "Takım kontrollerini yeniden boyutlandır",
+    resizeTitle: "Daha fazla oyuncu görmek için sürükleyin; tüm kontrolleri yeniden görmek için çift tıklayın",
+    refreshPlayerTitle: "Enerjisini ve maç kondisyonunu %100'e ayarla, onu tamamen dinlendir (yorgunluk -500)",
     maxAll: "Özellikleri tamamla",
     maxAllTitle:
       "Bu takımdaki her oyuncunun bütün özelliklerini en iyiye çıkar: 20; sakatlık eğilimi ve sertlik için 1",

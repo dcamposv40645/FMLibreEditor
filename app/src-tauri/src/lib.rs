@@ -3490,6 +3490,27 @@ fn set_captain(
     Ok(connection.log_captain(done))
 }
 
+/// Rested as the game rests a player: full energy and sharpness, and jadedness at its least. What Refresh all does to
+/// a team, and `refresh_player` to one player.
+const REFRESHED: &[(&str, i64)] = &[("condition", 10_000), ("match_sharpness", 10_000), ("jadedness", -500)];
+
+/// Rests the player `uid` as Refresh all rests a team (see `REFRESHED`). The changes are logged as one batch, which
+/// `undo_batch` undoes.
+#[tauri::command]
+fn refresh_player(state: State<'_, AppState>, uid: u32) -> Result<MassReport, Failure> {
+    let mut guard = state.0.lock()?;
+    let connection = guard.as_mut().ok_or_else(not_connected)?;
+    let player = connection.players.get(uid).ok_or_else(|| not_found(Entity::Player, uid))?;
+    let targets = [(player.target(), player.name.clone())];
+    let operations = REFRESHED
+        .iter()
+        .map(|&(key, value)| Ok((connection.session.field(Entity::Player, key)?, Operation::Set { value })))
+        .collect::<Result<Vec<_>, EditError>>()?;
+    let plan = connection.session.plan_mass_edit(&targets, &operations)?;
+    let batch = connection.fresh_id();
+    Ok(connection.write_planned(Entity::Player, plan.planned, batch))
+}
+
 /// Does `action` to every player of the team `team` of the club `club`, read now: those out
 /// on loan too. The changes are logged as one batch, which `undo_batch` undoes.
 #[tauri::command]
@@ -3563,8 +3584,7 @@ fn team_action(state: State<'_, AppState>, club: u32, team: usize, action: TeamA
         }
         // Morale at its best, and the reasons to be unhappy gone, as FMRTE's Inspire does.
         TeamAction::Inspire => &[("morale", 20), ("contract.unhappiness", 0)],
-        // Rested as the game rests a player: full energy and sharpness, and jadedness at its least.
-        TeamAction::Refresh => &[("condition", 10_000), ("match_sharpness", 10_000), ("jadedness", -500)],
+        TeamAction::Refresh => REFRESHED,
         TeamAction::MaxAttributes => &[],
     };
     let targets: Vec<(Target, String)> = members
@@ -3859,6 +3879,7 @@ pub fn run() {
             scouting_suggest,
             set_captain,
             team_action,
+            refresh_player,
             max_attributes,
             graphics_info,
             can_self_update,
