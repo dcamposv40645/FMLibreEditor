@@ -180,8 +180,8 @@ What every loan contract holds, across the 1,722 (`instances --fields`) and the 
 | `+0x90` to `+0x9C` | -1 in every loan |
 | `+0xA0`, `+0xA4` | numbers that do not grow with the loan |
 | `+0xA8` | 0xC8C (3,212) in every loan |
-| `+0xB0` | the flags of the terms (`[loan.terms]`); in 1,029 loans those at `+0xB8` with bit 13 (`0x2000`) set, and `0x0911` in the next two bytes |
-| `+0xB8` | the flags as agreed: the terms' bits, without bit 13 |
+| `+0xB0` | the flags of the terms (`[loan.terms]`); in 1,029 loans those at `+0xB8` with bit 13 (`0x2000`) set, and `0x0911` in the next two bytes. Only in the close season: see [On Windows](#on-windows) |
+| `+0xB8` | the flags as agreed: the terms' bits, without bit 13; 0 once the season is under way |
 | `+0xC0` to `+0xD0` | the option to buy and the monthly fees (`[loan.terms]`); 0 for no fee in most loans |
 | `+0xD4` | the wage again, in 1,042 loans (0 in 316) |
 | `+0xD8`, `+0xDC` | 90, 180, 270 or -1: numbers of days |
@@ -191,14 +191,16 @@ What every loan contract holds, across the 1,722 (`instances --fields`) and the 
 ### Making one
 
 `Session::plan_loan` (`loans.rs`) and the probe's `loan-start` start a loan as the game holds one (`[loan.start]` in
-`layout-macos.toml`; none on Windows yet, where the editor starts no loan):
+`layout-macos.toml` and `layout.toml`):
 
 1. the first free slot of the pool of loan contracts, a copy of the first running loan's in the pool with no option to
-   buy whose flags are as most loans' are: the player's, with the club's senior team, from today to the loan's last day
-   (by default 30 June, or his contract's end when that comes first, and never past it), on the wage given or his own
-   (at `+0x20` and `+0xD4`), with the squad status of his own contract and how happy he is with it, no squad number,
-   off the lists. The terms given (recall, termination, cup matches, against his own club) at `+0xB8`, and at `+0xB0`
-   with bit 13; no option to buy, no fees. `+0x28`, `+0x30`, `+0x68` and the counts at `+0xF4` to `+0xFB` cleared;
+   buy whose flags are in one of the two shapes below: the player's, with the club's senior team, from today to the
+   loan's last day (by default 30 June, or his contract's end when that comes first, and never past it), on the wage
+   given or his own (at `+0x20` and `+0xD4`), with the squad status of his own contract and how happy he is with it, no
+   squad number, off the lists. The terms given (recall, termination, cup matches, against his own club) in the
+   model's shape: at `+0xB8`, and at `+0xB0` with bit 13, when the model has them so (the close season); at `+0xB0`
+   alone, with `+0xB8` 0, when it has them so (the season under way). No option to buy, no fees. `+0x28`, `+0x30`,
+   `+0x68` and the counts at `+0xF4` to `+0xFB` cleared;
 2. his record pointing at it: his own, where its place for a loan is empty (a trial contract there is left alone, and
    the loan refused), or the first free slot of the pool of records;
 3. the club's senior team's list holding him, grown when it is full;
@@ -233,5 +235,20 @@ Read only, on Steam build 26385295 on Windows, on a Barcelona save of 14 June 20
 - `+0x70` to `+0x8F` are zero and `+0xA8` is 0xC8C in every loan. `+0x90` is -1 in all but 2, and `+0x9C` in all but
   8: none of them places a loan started by the editor writes.
 
-Both pools had no free slot on that day, so `loan-start` would have been refused: it takes only a free slot. No loan
-has been started on Windows yet, so `layout.toml` has no `[loan.start]`.
+Both pools had no free slot on that day, so `loan-start` would have been refused: it takes only a free slot. The
+game sizes its pools to the save when it loads one, so after a load they stay full until the game frees a slot itself;
+in the same session, on 11 November 2033, the pool of loan contracts was still full (1,747 used).
+
+On 4 January 2034, in the same session, with the January window open, 254 loan contracts had ended (1,493 used, 254
+free) and 86 records were free. The flags had changed shape in every loan: `+0xB8` read 0 in all 1,046, and bit 13
+was set at `+0xB0` in only 3 (English loans of October 2033). The 51 loans the game began in January had them so
+too: Andy King's, Manchester City to Girona from 3 January, holds `0x000E` at `+0xB0` and 0 at `+0xB8`. So the close
+season shape is no mark of a loan just begun, and the editor's model, which had to be in it, was missing: `loan-start`
+said "the game holds no running loan without an option to buy". A model in either shape now does, and the new loan
+takes its shape (`LoanFlags` in `loans.rs`).
+
+Then `loan-start 2002109239 814089 --restore --hold 180`: Marcos Martínez (20, Barcelona B) on loan to Girona until
+30 June 2034, 6 writes, flags `0x8006` at `+0xB0` and 0 at `+0xB8`. The game's profile said he was on loan at Girona.
+The undo was refused, as it should be when the game has written to what the editor wrote: "the game has changed the
+memory at 0x1c71bcebb30 since", the loan contract's slot, after his profile had been opened. The loan was left
+running, and kept.

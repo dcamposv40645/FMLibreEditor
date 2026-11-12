@@ -351,6 +351,21 @@ option_fee = 0xC0
 monthly_fee = 0xCC
 unused_fee = 0xD0
 
+# What starting a loan takes, as on the Mac (see layout-macos.toml and docs/recon/fm27-loans.md#on-windows). Read on a
+# Barcelona save of 14 June 2033 (Steam build 26385295) across its 1,419 loans: loan contracts in 256-byte slots of the
+# game's pool of them (game_plugin.dll+0x581d198), the records of a player's other contracts in 32-byte slots
+# (+0x58265b0); in 1,125 loans the flags at +0xB0 are those at +0xB8 with bit 13 set, and in 1,347 +0xD4 holds the
+# wage again; the places cleared read 0 in a loan that has just begun. By January the game has cleared +0xB8 and bit
+# 13 in every loan, and a new loan takes the shape its model has. Checked on 4 January 2034: Marcos Martínez on loan
+# from Barcelona to Girona, shown by the game.
+[loan.start]
+size = 0x100
+record_size = 0x20
+agreed_flags = 0xB8
+in_force = 0x2000
+wage_again = 0xD4
+cleared = [[0x28, 8], [0x30, 8], [0x68, 8], [0xF4, 2], [0xF8, 4]]
+
 [team]
 club = 0x30               # club pointer
 # u8, the kind of team: on the test save 0 for the first team, 10 for the under-21s and

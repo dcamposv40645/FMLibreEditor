@@ -121,15 +121,53 @@ impl LoanContract {
             put(offset, &vec![0; len as usize]);
         }
         let terms_bits = AGAINST_OWN_CLUB | CUP_MATCHES | RECALL | NOT_TERMINABLE;
-        let model_flags =
-            u16::from_le_bytes([model[start.agreed_flags as usize], model[start.agreed_flags as usize + 1]]);
-        let agreed = (model_flags & !terms_bits) | self.flags;
-        put(start.agreed_flags, &agreed.to_le_bytes());
-        put(terms.flags, &(agreed | start.in_force).to_le_bytes());
+        let u16_of = |offset: u64| u16::from_le_bytes([model[offset as usize], model[offset as usize + 1]]);
+        // The new loan's flags take the shape the model's have (see [`LoanFlags`]).
+        match LoanFlags::of(u16_of(terms.flags), u16_of(start.agreed_flags), start.in_force) {
+            Some(LoanFlags::Agreed(model_flags)) => {
+                let agreed = (model_flags & !terms_bits) | self.flags;
+                put(start.agreed_flags, &agreed.to_le_bytes());
+                put(terms.flags, &(agreed | start.in_force).to_le_bytes());
+            }
+            running => {
+                let model_flags = match running {
+                    Some(LoanFlags::Running(flags)) => flags,
+                    _ => u16_of(terms.flags),
+                };
+                let flags = (model_flags & !terms_bits & !start.in_force) | self.flags;
+                put(start.agreed_flags, &0u16.to_le_bytes());
+                put(terms.flags, &flags.to_le_bytes());
+            }
+        }
         put(terms.option_fee, &(-1i32).to_le_bytes());
         put(terms.monthly_fee, &0i32.to_le_bytes());
         put(terms.unused_fee, &0i32.to_le_bytes());
         bytes
+    }
+}
+
+/// The two shapes the flags of a running loan take. In the close season (a save of 29 May 2033 on the Mac, one of 14
+/// June 2033 on Windows) most loans hold the flags as agreed at `agreed_flags` and the terms' flags are those with
+/// `in_force` set; by January 2034 (Windows, 4 January) the game has cleared both in all 1,046 loans, those it began
+/// that month among them: `agreed_flags` reads 0 and the terms' flags are the terms alone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum LoanFlags {
+    /// The flags at `agreed_flags`.
+    Agreed(u16),
+    /// The terms' flags.
+    Running(u16),
+}
+
+impl LoanFlags {
+    /// Which shape the terms' flags `flags` and those at `agreed_flags`, `agreed`, are in, if either.
+    fn of(flags: u16, agreed: u16, in_force: u16) -> Option<Self> {
+        if agreed != 0 && flags == agreed | in_force {
+            Some(Self::Agreed(agreed))
+        } else if agreed == 0 && flags & in_force == 0 {
+            Some(Self::Running(flags))
+        } else {
+            None
+        }
     }
 }
 
@@ -520,7 +558,7 @@ impl Session {
                 let u16_at = |offset: u64| u16::from_le_bytes([slot[offset as usize], slot[offset as usize + 1]]);
                 let i32_at = |offset: u64| i32::from_le_bytes(slot[at(offset, 4)].try_into().expect("4 bytes"));
                 let typical = vtables.contains(&word(0))
-                    && u16_at(terms.flags) == u16_at(start.agreed_flags) | start.in_force
+                    && LoanFlags::of(u16_at(terms.flags), u16_at(start.agreed_flags), start.in_force).is_some()
                     && i32_at(terms.option_fee) == -1
                     && start.cleared.iter().filter(|&&(_, len)| len == 8).all(|&(offset, _)| word(offset) == 0);
                 if !typical {
@@ -639,6 +677,7 @@ mod tests {
         // A model with something in every byte, flags the terms do not set (bit 15), and on both lists.
         let mut model = vec![0xAA; start.size as usize];
         model[at(start.agreed_flags, 2)].copy_from_slice(&0x8107u16.to_le_bytes());
+        model[at(terms.flags, 2)].copy_from_slice(&(0x8107u16 | start.in_force).to_le_bytes());
         model[c.listing as usize] = 0x80 | LISTED;
         // His own contract: Youngster (13), how happy he is with it, and his playing time.
         let mut own = vec![0; c.end() as usize];
@@ -682,6 +721,41 @@ mod tests {
         assert_eq!((i32_at(terms.option_fee), i32_at(terms.monthly_fee), i32_at(terms.unused_fee)), (-1, 0, 0));
         // The rest is the model's: the constant at +0xA8 every loan holds, for one.
         assert_eq!(bytes[0xA8], 0xAA);
+    }
+
+    #[test]
+    fn a_new_loan_in_the_season_has_its_flags_as_the_game_has_them_then() {
+        let layout = mac_layout();
+        let c = &layout.contract;
+        let loan = layout.loan.as_ref().expect("loans");
+        let (start, terms) = (loan.start.as_ref().expect("loan.start"), loan.terms.as_ref().expect("loan.terms"));
+        // Andy King's, Manchester City to Girona from 3 January 2034: the flags as agreed cleared, the terms' 0x000E.
+        let mut model = vec![0xAA; start.size as usize];
+        model[at(start.agreed_flags, 2)].copy_from_slice(&0u16.to_le_bytes());
+        model[at(terms.flags, 2)].copy_from_slice(&0x000Eu16.to_le_bytes());
+        let own = vec![0; c.end() as usize];
+        let made = LoanContract {
+            owner: 1,
+            team: 2,
+            from: 20340104,
+            until: 20340630,
+            wage: 90,
+            flags: NewLoan::default().flags(),
+        };
+        let bytes = made.bytes(&model, &own, c, start, terms);
+        let u16_at = |offset: u64| u16::from_le_bytes(bytes[at(offset, 2)].try_into().expect("2 bytes"));
+        assert_eq!(u16_at(start.agreed_flags), 0);
+        // The terms given, and the model's bit that is no term (3), without bit 13.
+        assert_eq!(u16_at(terms.flags), 0x0008 | CUP_MATCHES | RECALL);
+    }
+
+    #[test]
+    fn a_loans_flags_are_in_one_shape_or_the_other() {
+        assert_eq!(LoanFlags::of(0x2106, 0x0106, 0x2000), Some(LoanFlags::Agreed(0x0106)));
+        assert_eq!(LoanFlags::of(0x0106, 0, 0x2000), Some(LoanFlags::Running(0x0106)));
+        // Bit 13 left in a loan whose flags as agreed are cleared, as three English loans of October 2033 hold.
+        assert_eq!(LoanFlags::of(0x2106, 0, 0x2000), None);
+        assert_eq!(LoanFlags::of(0x0107, 0x0106, 0x2000), None);
     }
 
     #[test]
