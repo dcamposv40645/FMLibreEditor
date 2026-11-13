@@ -388,6 +388,10 @@ reputation = 0xA8         # u16, 0..10000; the club's reputation lives on its se
 # (Parma, Exeter City), as the game leaves a club between two managers. A team takes 0xB8 bytes, one after another
 # in memory, so what lies 0xB8 on is the next team's.
 manager = 0x80
+# u32: the team's own UID, which FM's screens name the team by (see docs/recon/fm27-viewing.md). As on the Mac: on the
+# Barcelona save (Steam build 26385295, 13 November 2026), the first team held 1708, the club's UID, and the under-19s
+# 2000779733, the UID FM's squad screen of them gave.
+uid = 0x0C
 
 # The game's allocator hands out blocks in size classes, without headers. Measured on
 # the buffers of the teams' player lists (probe `squads`): a list of n pointers sits in

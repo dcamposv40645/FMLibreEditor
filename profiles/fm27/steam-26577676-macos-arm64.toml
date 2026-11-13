@@ -1,0 +1,26 @@
+# FM27 on Steam for macOS (app 4530370, build 26577676), the update of 12 November 2026 (version 27.0.1.2503222): the
+# arm64 half of the universal game_plugin, which Apple silicon Macs run natively. A new LC_UUID, but __DATA starts where
+# 27.0.1's does (0x5740000) and every variable sits where build 26385295 keeps it. Worked out by `fmlibre-probe profile`
+# on a running save (12 July 2027), as for a build without a profile, and every check passed. Taken from
+# tozmoz/FMLibreEditor (PR #184), without the statics of features this fork does not have (game_ui, tactics_manager,
+# training_manager).
+name = "FM27 Steam build 26577676 (macOS, Apple silicon)"
+edition = 27
+storefront = "steam"
+
+# The in-game date, 12 July 2027 on the save: 3,376 of 3,376 contract dates before it, and 86 of 86 current injuries
+# begun by then and not over.
+current_date = 0x574DDB8
+
+# The static pointer to the retirement manager (RETIREMENT_MANAGER): 894 planned retirements on the save.
+retirement_manager = 0x57442A8
+
+# game_plugin as mapped in memory: its LC_UUID identifies the build and the architecture.
+[plugin]
+uuid = "A8550B47-FDE0-3D0D-A6CB-1B63DEE8DA19"
+
+# RVAs in game_plugin of the (begin, end) pointer pairs of the entity arrays, as calibrate found them by scanning.
+[arrays]
+players = 0x576EE50
+staff = 0x576EE98
+clubs = 0x576F008

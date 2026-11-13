@@ -908,12 +908,15 @@ const BUILDS: &[&str] = &[
     include_str!("../../../profiles/fm27/steam-26227640.toml"),
     include_str!("../../../profiles/fm27/steam-26340721.toml"),
     include_str!("../../../profiles/fm27/steam-26385295.toml"),
+    include_str!("../../../profiles/fm27/steam-26577676.toml"),
     include_str!("../../../profiles/fm27/steam-26227640-macos-x86_64.toml"),
     include_str!("../../../profiles/fm27/steam-26227640-macos-arm64.toml"),
     include_str!("../../../profiles/fm27/steam-26340721-macos-x86_64.toml"),
     include_str!("../../../profiles/fm27/steam-26340721-macos-arm64.toml"),
     include_str!("../../../profiles/fm27/steam-26385295-macos-x86_64.toml"),
     include_str!("../../../profiles/fm27/steam-26385295-macos-arm64.toml"),
+    include_str!("../../../profiles/fm27/steam-26577676-macos-x86_64.toml"),
+    include_str!("../../../profiles/fm27/steam-26577676-macos-arm64.toml"),
 ];
 
 /// The built-in object layout for `edition`, if there is one.

@@ -1,0 +1,27 @@
+# FM27 on Steam (app 4530370, build 26577676), the update of 12 November 2026: it changed fm.exe, GameAssembly.dll
+# and game_plugin.dll. Worked out by `fmlibre-probe profile` on a save of 23 September 2027, where every check
+# passed. The plugin's image is larger and was linked later, but every static sits where build 26385295 keeps it,
+# and the object layout is unchanged. Taken from tozmoz/FMLibreEditor (PR #182), without the statics of features
+# this fork does not have (game_ui, tactics_manager, training_manager).
+name = "FM27 Steam build 26577676"
+edition = 27
+storefront = "steam"
+
+# The in-game date, 2027-09-23 on the save: 3674 of 3674 contract dates
+# before it, and 109 of 109 current injuries begun by then and not over.
+current_date = 0x57CA3B8
+
+# The static pointer to the retirement manager (RETIREMENT_MANAGER),
+# 0xDAC0 before the players pair; 406 planned retirements on the save.
+retirement_manager = 0x5812D50
+
+# game_plugin as mapped in memory; these values identify the build.
+[plugin]
+size_of_image = 0x185FA000
+link_timestamp = 0x6AF38E5C
+
+# RVAs in game_plugin of the (begin, end) pointer pairs of the entity arrays.
+[arrays]
+players = 0x5820810
+staff = 0x5820858
+clubs = 0x58209C8

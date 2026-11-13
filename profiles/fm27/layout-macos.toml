@@ -332,7 +332,7 @@ reputation = 0xA8         # Tottenham: 7650
 manager = 0x80
 # u32: the team's own UID, which FM's screens name the team by (see docs/recon/fm27-viewing.md). On the Barcelona save
 # (2 May 2034), the first team held 1708, the club's UID, and the under-19s 2000779733, the UID FM's squad screen of
-# them gave. Not checked on Windows yet, so layout.toml leaves it out.
+# them gave. The same on Windows.
 uid = 0x0C
 
 # The game brings its own allocator to macOS: it carves the chunks it gets from malloc into

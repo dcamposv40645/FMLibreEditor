@@ -3,7 +3,8 @@
 Notes behind the setting "Follow the game's screen" (`ScreenWatch` in `crates/fmlibre-core/src/viewing.rs`, the
 thread in `app/src-tauri/src/follow.rs`): the editor opens the profile of the player, member of staff or club whose
 screen FM shows, or the squad of the team it shows. Found on the Mac Steam build 26385295 (Apple silicon), on a
-Barcelona save of 2 May 2034, on 12 November 2026. Nothing here writes to the game.
+Barcelona save of 2 May 2034, on 12 November 2026, and confirmed on Windows (the same build) on 13 November 2026 (see
+[On Windows](#on-windows)). Nothing here writes to the game.
 
 ## Where it is
 
@@ -15,7 +16,7 @@ them. IL2CPP keeps the names of the classes and of their fields, so everything b
 | The object that runs the screen's tabs | the one object of the class `GameWorldTabsAndBookmarksModule` (no namespace) whose `m_currentOpenPanel` and `m_lastTabUpdateValue` point at objects |
 | The UID of what the screen shows | its field `m_currentSecondaryTabObjectUniqueID` (`+0x2A8` on that build), a `u32` |
 | What kind of thing that is | its field `m_lastTabUpdateValue` (`+0x360`): an `SI.Core.ReferenceTypedValue`, whose `m_value` (`+0x18`, a field of its parent `SI.Core.TypedValue<T>`) is a reference whose class says: `FM.UI.PersonReference`, `FM.UI.TeamReference` or `FM.UI.ClubReference` |
-| A team's own UID | `+0x0C` of the team (`uid` in `[team]` of `layout-macos.toml`) |
+| A team's own UID | `+0x0C` of the team (`uid` in `[team]` of `layout-macos.toml` and `layout.toml`) |
 
 The field also holds a club's or a team's UID. A first team's UID is its club's (Barcelona's first team: 1708). The
 club's other teams have UIDs of their own: Barcelona's under-19s, 2000779733. The game's `TeamReference` names the team
@@ -59,11 +60,39 @@ Between screens it read, for a moment, what is not there: `person 1708` (the new
 `club 4294967295`. The app takes what the screen shows only once it reads the same twice in a row, 0.4 s apart, and
 only when its lists have it.
 
+## On Windows
+
+Read only, on the Steam build 26385295 on Windows (`GameAssembly.dll`), on the Barcelona save, on 13 November 2026.
+Everything is as on the Mac, and `viewing.rs` needed no change:
+
+- **The class.** The name `GameWorldTabsAndBookmarksModule` is in IL2CPP's table of names (`find`). One place points
+  at it (`refs`): `+0x10` of the class, which holds its image at `+0x00`, its namespace (empty) at `+0x18`, itself at
+  `+0x40` and `+0x48`, its parent at `+0x58` and its fields at `+0x80`.
+- **Its fields.** `FieldInfo`s of `0x20` bytes: the name at `+0x00`, the type at `+0x08`, the class at `+0x10`, the
+  offset at `+0x18`. 120 fields, with `m_currentOpenPanel` at `+0x1E0`, `m_currentSecondaryTabObjectUniqueID` at
+  `+0x2A8` and `m_lastTabUpdateValue` at `+0x360`, as on the Mac.
+- **The object.** 908 places held a pointer to the class: the game's tables and the like, and one object whose panel
+  (an `SI.Bindable.PanelID`) and value (an `SI.Core.ReferenceTypedValue`) are objects. Its `+0x2A8` held 2002089220,
+  Dinho, whose profile was open.
+- **Teams.** `+0x0C` of Barcelona's first team held 1708, of its under-19s 2000779733 (as on the Mac) and of its third
+  team 2000803054; `uid = 0x0C` is in `[team]` of `layout.toml`.
+
+The first `viewing --watch`, run soon after the save had loaded, found no object ("found no
+GameWorldTabsAndBookmarksModule"); the next, a few minutes later, found it. The probe looks once; the app looks again
+every 10 s (`RETRY` in `follow.rs`).
+
+`viewing --watch` found the module in 5.6 s and read, as the screens were clicked through:
+
+- `player 2002089220 Dinho (Barcelona)`;
+- `team 1708: Barcelona team 0`;
+- `staff 885406 Heiko Westermann`;
+- `club 679 Manchester City`;
+- `team 2000779733: Barcelona team 1`.
+
+Between screens it read `something else` and `person 4294967295, not in the lists`, as on the Mac.
+
 ## Open
 
-- **Windows.** IL2CPP's structures, and the team's `+0x0C`, are likely the same there, but nothing has been read on
-  Windows yet. To check it on a save, `fmlibre-probe viewing --watch` should follow the screen. Then add `uid = 0x0C` to
-  `[team]` in `layout.toml`. Without it, the editor follows players, staff and clubs but not teams.
 - **Other screens.** A competition, a nation or the inbox reads as "something else", which the editor ignores. Which of
   their references are worth following has not been looked at.
 - **After an update of the game.** The names hold across builds unless SI renames them. The offsets in the IL2CPP
