@@ -1154,6 +1154,9 @@ export const it: Strings = {
     followGame: "Segui il gioco",
     followGameTitle:
       "Rileggi il gioco da solo quando avanza di un giorno o carica un altro salvataggio, dopo il dialogo o la modifica aperti",
+    followScreen: "Segui la schermata del gioco",
+    followScreenTitle:
+      "Apri il profilo del giocatore, membro dello staff o club che FM mostra, o la rosa della squadra che mostra, mentre ti muovi nel gioco",
     overlay: "Finestra sopra il gioco",
     overlayTitle: (shortcut) =>
       shortcut === null

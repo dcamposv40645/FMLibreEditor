@@ -1059,6 +1059,9 @@ export const id: Strings = {
     followGame: "Ikuti game",
     followGameTitle:
       "Baca ulang game sendiri saat game maju sehari atau memuat simpanan lain, setelah dialog atau suntingan yang terbuka selesai",
+    followScreen: "Ikuti layar game",
+    followScreenTitle:
+      "Buka profil pemain, staf, atau klub yang ditampilkan FM, atau skuad tim yang ditampilkannya, saat kamu berpindah di dalam game",
     overlay: "Jendela di atas game",
     overlayTitle: (shortcut: string | null) =>
       shortcut === null

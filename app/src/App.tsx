@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { call, inTauri } from "./api";
 import { useAutoRefresh, useAutoRefreshSetting } from "./autoRefresh";
+import { useFollowView, useFollowViewSetting, type Followed } from "./followView";
 import { isOverlay, tellOtherWindow, toggleOverlay, useOtherWindow } from "./overlay";
 import { BridgeSetup } from "./BridgeSetup";
 import { ChangesView, useChangeLog } from "./ChangesView";
@@ -128,6 +129,26 @@ function App() {
   const [autoRefresh, setAutoRefresh] = useAutoRefreshSetting();
   useAutoRefresh(autoRefresh && !isOverlay, connection !== null, busy !== null, reload);
 
+  // FM's screen shows another player, member of staff, team or club: its list opens its profile, in both windows (see
+  // followView.ts).
+  const [followView, setFollowView] = useFollowViewSetting();
+  const [followed, setFollowed] = useState<Followed | null>(null);
+  useFollowView(followView, connection !== null, (viewing) => {
+    setView(viewing.kind === "player" ? "players" : viewing.kind === "staff" ? "staff" : "clubs");
+    setFollowed((last) => ({ viewing, seq: (last?.seq ?? 0) + 1 }));
+  });
+  const followedPlayer =
+    followed?.viewing.kind === "player" ? { row: followed.viewing.player, seq: followed.seq } : null;
+  const followedStaff = followed?.viewing.kind === "staff" ? { row: followed.viewing.staff, seq: followed.seq } : null;
+  const followedClub =
+    followed?.viewing.kind === "club" || followed?.viewing.kind === "team"
+      ? {
+          row: followed.viewing.club,
+          team: followed.viewing.kind === "team" ? followed.viewing.team : null,
+          seq: followed.seq,
+        }
+      : null;
+
   // At startup: the Rust side keeps its connection, lists and change log when the window is reloaded (that is how a
   // change of language keeps the connection), so the app first asks for the connection it may have already. With
   // one, it shows the connected app right away, without reading the game again; without one, it looks for the game.
@@ -245,6 +266,8 @@ function App() {
             busy={busy !== null}
             autoRefresh={autoRefresh}
             onAutoRefresh={setAutoRefresh}
+            followView={followView}
+            onFollowView={setFollowView}
             onOverlay={inTauri ? () => void toggleOverlay() : undefined}
           />
         </div>
@@ -283,9 +306,15 @@ function App() {
                   active={view === "players"}
                   genderKnown={connection.genderKnown}
                   comparison={comparison}
+                  followed={followedPlayer}
                 />
-                <StaffBrowser version={dataVersion} active={view === "staff"} genderKnown={connection.genderKnown} />
-                <ClubBrowser version={dataVersion} active={view === "clubs"} />
+                <StaffBrowser
+                  version={dataVersion}
+                  active={view === "staff"}
+                  genderKnown={connection.genderKnown}
+                  followed={followedStaff}
+                />
+                <ClubBrowser version={dataVersion} active={view === "clubs"} followed={followedClub} />
                 <ScoutingBrowser version={dataVersion} active={view === "scouting"} />
                 {view === "changes" && <ChangesView log={log} error={logError} reload={reloadLog} onUndone={edited} />}
               </div>

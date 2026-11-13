@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ClubProfile, readTab, type ClubTab } from "./ClubProfile";
 import { ExportButton } from "./ExportDialog";
 import { clubListText, profileText } from "./labels";
-import { ListBrowser } from "./ListBrowser";
+import { ListBrowser, type Followed } from "./ListBrowser";
 import { MassEditButton } from "./MassEditDialog";
 import { ClubLogo, PICTURE_SIZE, WithPicture } from "./Picture";
 import { ReputationMeter } from "./ProfileParts";
@@ -18,14 +18,32 @@ type ClubKind = "all" | "men" | "women";
 /** The kind of clubs saved before the language was switched; all of them when there is none. */
 const readKind = (value: unknown): ClubKind => (value === "men" || value === "women" ? value : "all");
 
+/** The club FM's screen shows, and the place in the club's list of the team it shows, if any (see followView.ts). */
+export type FollowedClub = Followed<ClubSummary> & { team: number | null };
+
+interface ClubBrowserProps {
+  version: number;
+  active: boolean;
+  /** The club FM's screen shows, to open: on its squad, at that team, when the screen shows a team. */
+  followed?: FollowedClub | null;
+}
+
 /** The clubs table with the profile of the selected club beside it. */
-export function ClubBrowser({ version, active }: { version: number; active: boolean }) {
+export function ClubBrowser({ version, active, followed }: ClubBrowserProps) {
   // It starts as it was before the language was switched, if it was (see `restore.ts`).
   const [kind, setKind] = useState<ClubKind>(() => restored("clubKind", readKind));
   useSnapshot("clubKind", () => kind);
   // The tab of the club profile is kept here, so that the next club picked opens on the squad when this one did.
   const [tab, setTab] = useState<ClubTab>(() => restored("clubTab", readTab));
   useSnapshot("clubTab", () => tab);
+  // A team on FM's screen opens the club's squad.
+  const followedSeq = followed?.seq;
+  const followedTeam = followed?.team ?? null;
+  useEffect(() => {
+    if (followedSeq !== undefined && followedTeam !== null) {
+      setTab("squad");
+    }
+  }, [followedSeq, followedTeam]);
   const filter: ClubFilter | undefined = kind === "all" ? undefined : { women: kind === "women" };
 
   return (
@@ -65,8 +83,16 @@ export function ClubBrowser({ version, active }: { version: number; active: bool
         </>
       }
       cells={(c) => <ClubCells club={c} />}
+      followed={followed}
       profile={(c, panel) => (
-        <ClubProfile club={c} version={panel.version} tab={tab} onTab={setTab} onClose={panel.onClose} />
+        <ClubProfile
+          club={c}
+          version={panel.version}
+          tab={tab}
+          onTab={setTab}
+          onClose={panel.onClose}
+          followedTeam={followed && followed.row.uid === c.uid && followed.team !== null ? followed : null}
+        />
       )}
     />
   );

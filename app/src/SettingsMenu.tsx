@@ -100,11 +100,15 @@ interface SettingsMenuProps {
   /** Whether the app reads the game again by itself once it moves on (see autoRefresh.ts), and what changes that. */
   autoRefresh: boolean;
   onAutoRefresh: (on: boolean) => void;
+  /** Whether the app opens the profile of what FM's screen shows (see followView.ts), and what changes that. */
+  followView: boolean;
+  onFollowView: (on: boolean) => void;
   /** Shows the overlay over the game, or hides it (see overlay.ts); none where there is no overlay (a browser). */
   onOverlay?: () => void;
 }
 
-export function SettingsMenu({ busy, autoRefresh, onAutoRefresh, onOverlay }: SettingsMenuProps) {
+export function SettingsMenu(props: SettingsMenuProps) {
+  const { busy, autoRefresh, onAutoRefresh, followView, onFollowView, onOverlay } = props;
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement>(null);
@@ -354,6 +358,17 @@ export function SettingsMenu({ busy, autoRefresh, onAutoRefresh, onOverlay }: Se
               >
                 {appText.followGame}
                 {autoRefresh && CHECK}
+              </button>
+              <button
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={followView}
+                tabIndex={-1}
+                title={appText.followScreenTitle}
+                onClick={() => onFollowView(!followView)}
+              >
+                {appText.followScreen}
+                {followView && CHECK}
               </button>
               {onOverlay && (
                 <button

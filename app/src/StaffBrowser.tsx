@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Ability } from "./Ability";
 import { formatDate } from "./format";
 import { jobLabel, profileText, staffListText } from "./labels";
-import { ListBrowser } from "./ListBrowser";
+import { ListBrowser, type Followed } from "./ListBrowser";
 import { MassEditButton } from "./MassEditDialog";
 import { ClubLogo, NationFlag, PICTURE_SIZE, WithPicture } from "./Picture";
 import { restored, useSnapshot } from "./restore";
@@ -27,10 +27,12 @@ interface StaffBrowserProps {
   active: boolean;
   /** Whether the game's layout tells women from men, for the filter that keeps to one of them. */
   genderKnown: boolean;
+  /** The member of staff FM's screen shows, to open (see followView.ts). */
+  followed?: Followed<StaffSummary> | null;
 }
 
 /** The staff table with the profile of the selected member of staff beside it. */
-export function StaffBrowser({ version, active, genderKnown }: StaffBrowserProps) {
+export function StaffBrowser({ version, active, genderKnown, followed }: StaffBrowserProps) {
   // The filters and the sort start as they were before the language was switched, if it was (see `restore.ts`).
   const [fields, setFields] = useState(() => restored("staffFields", readStaffFields));
   // Null until a header is clicked: no order is asked for, and the search answers with the human manager first.
@@ -103,6 +105,7 @@ export function StaffBrowser({ version, active, genderKnown }: StaffBrowserProps
         </>
       }
       cells={(s) => <StaffCells staff={s} />}
+      followed={followed}
       profile={(s, panel) => <StaffProfile member={s} version={panel.version} onClose={panel.onClose} />}
     />
   );

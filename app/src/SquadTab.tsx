@@ -188,10 +188,12 @@ interface SquadTabProps {
   /** Changes when the game data is read again, so the squad is too. */
   version: number;
   panel: PanelIds;
+  /** The team FM's screen shows, by its place in the club's list, to switch to (see followView.ts). */
+  followedTeam?: { team: number | null; seq: number } | null;
 }
 
 /** The squad of the club `clubUid`: a switch between its teams, the team's summary and actions, and its table. */
-export function SquadTab({ clubUid, version, panel }: SquadTabProps) {
+export function SquadTab({ clubUid, version, panel, followedTeam }: SquadTabProps) {
   const { editable, onEdited } = useContext(EditorContext);
   const loaded = useSquads(clubUid, version);
   // The team that is shown, by its place in the club's list.
@@ -208,6 +210,16 @@ export function SquadTab({ clubUid, version, panel }: SquadTabProps) {
   const [shown, setShown] = useState<SquadPlayer | null>(null);
   const opener = useRef<HTMLElement | null>(null);
   const wasShown = useRef(false);
+
+  // A team on FM's screen is switched to, with no player's profile up over it.
+  const followedSeq = followedTeam?.seq;
+  const followedIndex = followedTeam?.team ?? null;
+  useEffect(() => {
+    if (followedSeq !== undefined && followedIndex !== null) {
+      setTeamIndex(followedIndex);
+      setShown(null);
+    }
+  }, [followedSeq, followedIndex]);
 
   const teams = loaded?.details;
   // A team that is no longer there (the game changed) gives way to the first one.

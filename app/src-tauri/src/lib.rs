@@ -1,4 +1,5 @@
 mod bridge;
+mod follow;
 mod overlay;
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -3749,6 +3750,7 @@ pub fn run() {
         )
         .manage(AppState::default())
         .manage(Graphics::default())
+        .manage(follow::Follow::default())
         .setup(|app| {
             // Reading the packs' config files takes a moment: do it beside the window. FM keeps its user data
             // in the documents folder on Windows and in Application Support on macOS, or somewhere else, which
@@ -3764,6 +3766,8 @@ pub fn run() {
             let data = std::env::var_os(DATA_FOLDER).map(PathBuf::from).or_else(|| app.path().app_data_dir().ok());
             // The overlay's shortcut, as chosen before (see overlay.rs).
             overlay::setup_shortcut(app.handle(), data.as_deref());
+            // What the game's screen shows, for the windows to follow when they want to (see follow.rs).
+            follow::start(app.handle().clone());
             app.manage(FrozenFile(data.map(|folder| folder.join(FROZEN_FILE))));
             let exports = std::env::var_os(EXPORTS_FOLDER)
                 .map(PathBuf::from)
@@ -3880,6 +3884,7 @@ pub fn run() {
             set_captain,
             team_action,
             refresh_player,
+            follow::set_follow_view,
             max_attributes,
             graphics_info,
             can_self_update,

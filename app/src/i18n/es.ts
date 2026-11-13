@@ -1113,6 +1113,9 @@ export const es: Strings = {
     followGame: "Seguir el juego",
     followGameTitle:
       "Volver a leer el juego solo cuando avanza un día o carga otra partida, al cerrar el diálogo o la edición abiertos",
+    followScreen: "Seguir la pantalla del juego",
+    followScreenTitle:
+      "Abrir el perfil del jugador, empleado o club que muestra FM, o la plantilla del equipo que muestra, mientras navegas por el juego",
     overlay: "Ventana sobre el juego",
     overlayTitle: (shortcut) =>
       shortcut === null

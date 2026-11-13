@@ -75,12 +75,20 @@ interface ListBrowserProps<Row extends { uid: number }> {
   cells: (row: Row) => ReactNode;
   /** The profile panel of the selected row. */
   profile: (row: Row, panel: { version: number; onClose: () => void }) => ReactNode;
+  /** A row to select from outside the list: what FM's screen shows (see followView.ts). */
+  followed?: Followed<Row> | null;
+}
+
+/** A row to select from outside the list, and which time it is. */
+export interface Followed<Row> {
+  row: Row;
+  seq: number;
 }
 
 /** A searchable table with the profile of the selected row beside it. */
 export function ListBrowser<Row extends { uid: number }>(props: ListBrowserProps<Row>) {
   const { command, requestArgs, version, active, placeholder, summary, empty, filterBar, toolbarActions } = props;
-  const { name, footer, tableClass, header, cells, profile } = props;
+  const { name, footer, tableClass, header, cells, profile, followed } = props;
   // What the list held before the language was switched, if it was: the search text, and the UID of the row to select
   // as soon as the rows are there again.
   const [start] = useState(() => restored(name, readList));
@@ -162,6 +170,17 @@ export function ListBrowser<Row extends { uid: number }>(props: ListBrowserProps
       searchInput.current?.focus();
     }
   }, [active]);
+
+  // What FM's screen shows is selected, whether or not its row is on show. Nothing is pending then: the profile being
+  // edited, or a dialog up, holds it back until they are done (see followView.ts).
+  const followedSeq = followed?.seq;
+  const followedRow = useRef(followed?.row);
+  followedRow.current = followed?.row;
+  useEffect(() => {
+    if (followedSeq !== undefined && followedRow.current !== undefined) {
+      setSelected(followedRow.current);
+    }
+  }, [followedSeq]);
 
   const settled = page !== null && shownFor !== null && shownFor.query === query && shownFor.argsKey === argsKey;
 

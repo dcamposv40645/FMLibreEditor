@@ -619,6 +619,10 @@ pub struct TeamLayout {
     /// manager is then left as he is.
     #[serde(default)]
     pub manager: Option<u64>,
+    /// `u32`: the team's own UID, which the game's screens name it by: a first team's is its club's, the club's other
+    /// teams have others. Unset where the layout has not placed it, and the editor does not follow a team's screen.
+    #[serde(default)]
+    pub uid: Option<u64>,
 }
 
 impl TeamLayout {
@@ -633,6 +637,7 @@ impl TeamLayout {
             self.vice_captain + 8,
             self.reputation + 2,
             self.manager.map_or(0, |at| at + 8),
+            self.uid.map_or(0, |at| at + 4),
         ]
         .into_iter()
         .max()

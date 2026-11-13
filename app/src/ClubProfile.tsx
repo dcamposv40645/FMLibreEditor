@@ -47,10 +47,12 @@ interface ClubProfileProps {
   tab: ClubTab;
   onTab: (tab: ClubTab) => void;
   onClose: () => void;
+  /** The team of this club FM's screen shows, by its place in the club's list, for the squad (see followView.ts). */
+  followedTeam?: { team: number | null; seq: number } | null;
 }
 
 /** The profile of one club. Mount it with `key={uid}` so a new club starts at the top. */
-export function ClubProfile({ club, version, tab, onTab, onClose }: ClubProfileProps) {
+export function ClubProfile({ club, version, tab, onTab, onClose, followedTeam }: ClubProfileProps) {
   const loaded = useProfileDetails<ClubDetails>("club_details", club.uid, version);
   const editing = useProfileEditing("club", club.uid);
   const base = useId();
@@ -94,7 +96,7 @@ export function ClubProfile({ club, version, tab, onTab, onClose }: ClubProfileP
     >
       {details &&
         (shown === "squad" ? (
-          <SquadTab clubUid={club.uid} version={version} panel={panel} />
+          <SquadTab clubUid={club.uid} version={version} panel={panel} followedTeam={followedTeam} />
         ) : shown === "stadium" ? (
           <StadiumTab club={club.uid} stadium={details.stadium} panel={panel} />
         ) : (

@@ -42,6 +42,7 @@ mod staff;
 mod staff_move;
 mod text;
 mod transfer;
+mod viewing;
 
 pub use calibrate::{ArrayRef, EntityArrays, calibrate};
 pub use clauses::{
@@ -104,3 +105,4 @@ pub use staff_move::{
 };
 pub use text::{fold, is_name_like, read_fm_string, read_name_entry};
 pub use transfer::{Amounts, ClubMoney, ClubMove, FeePlan, MAX_FEE, MoveError, MovePlan, MoveTerms, Paid, RoomMaker};
+pub use viewing::{ScreenWatch, TeamPlace, Viewed, WatchError};

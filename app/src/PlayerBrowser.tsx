@@ -4,7 +4,7 @@ import { ComparisonTray } from "./Comparison";
 import { ExportButton } from "./ExportDialog";
 import { formatDate } from "./format";
 import { playerListText, positionLabel, profileText } from "./labels";
-import { ListBrowser } from "./ListBrowser";
+import { ListBrowser, type Followed } from "./ListBrowser";
 import { MassEditButton } from "./MassEditDialog";
 import { ClubLogo, NationFlag, PICTURE_SIZE, WithPicture } from "./Picture";
 import { countFilters, PlayerFilterBar, toPlayerFilter, type PlayerFilterFields } from "./PlayerFilters";
@@ -34,10 +34,12 @@ interface PlayerBrowserProps {
   genderKnown: boolean;
   /** The players picked for a comparison, which the tray under the table shows (see `useComparison`). */
   comparison: Comparison;
+  /** The player FM's screen shows, to open (see followView.ts). */
+  followed?: Followed<PlayerSummary> | null;
 }
 
 /** The players table with the profile of the selected player beside it. */
-export function PlayerBrowser({ version, active, genderKnown, comparison }: PlayerBrowserProps) {
+export function PlayerBrowser({ version, active, genderKnown, comparison, followed }: PlayerBrowserProps) {
   // The filters and the sort start as they were before the language was switched, if it was (see `restore.ts`).
   const [fields, setFields] = useState<PlayerFilterFields>(() => restored("playerFields", readFields));
   // Null until a header is clicked: no order is asked for, and the search answers with the best current ability first.
@@ -145,6 +147,7 @@ export function PlayerBrowser({ version, active, genderKnown, comparison }: Play
           <td className="num uid col-uid">{p.uid}</td>
         </>
       )}
+      followed={followed}
       profile={(p, panel) => (
         <PlayerProfile player={p} version={panel.version} onClose={panel.onClose} comparison={comparison} />
       )}

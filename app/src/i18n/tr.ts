@@ -1078,6 +1078,9 @@ export const tr: Strings = {
     followGame: "Oyunu takip et",
     followGameTitle:
       "Oyun bir gün ilerlediğinde ya da başka bir kayıt yüklediğinde, açık pencere ya da düzenleme bitince oyunu kendiliğinden yeniden oku",
+    followScreen: "Oyunun ekranını takip et",
+    followScreenTitle:
+      "Oyunda gezinirken FM'in gösterdiği oyuncunun, personelin ya da kulübün profilini veya gösterdiği takımın kadrosunu aç",
     overlay: "Oyunun üstünde pencere",
     overlayTitle: (shortcut) =>
       shortcut === null

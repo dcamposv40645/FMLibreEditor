@@ -293,6 +293,8 @@ fmlibre-probe swap 13200568 72048035 --restore       # two players swap clubs an
 fmlibre-probe loan-start 2002109237 814089 --plan    # whether a player can go on loan to a club; no writes (Mac only so far)
 fmlibre-probe loan-start 2002109237 814089 --restore # send him on loan and back: this writes too
 fmlibre-probe loan-holders                           # what points at players on loan and not at others; no writes
+fmlibre-probe viewing --watch                        # what FM's screen shows (player, staff, team, club) as it changes
+fmlibre-probe view-find player:2002089220 a.txt      # where a screen keeps what it shows; then another screen with --against a.txt
 fmlibre-probe release 91100466 --restore             # release a player from his club and back: this writes too
 fmlibre-probe staff-move 4000571 1139 --restore      # move a member of staff to a club and back: this writes too
 fmlibre-probe staff-move 4102655 676 --job 88 --restore   # the same, as another job (a code, see staff-job)

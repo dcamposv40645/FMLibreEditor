@@ -723,6 +723,33 @@ enum Command {
         #[arg(long, default_value_t = 100)]
         max: usize,
     },
+    /// Find where the game keeps what its screen shows. With FM showing VIEWING, save every pointer to it, and every
+    /// 4-byte word holding its id (a club's for a team), in the game's writable memory to OUT, with the class of the object holding each one. With --against the files of
+    /// earlier screens, each showing something else, also print the places that pointed at what each screen showed:
+    /// the same address every time, or the same place in an object of the same class.
+    ViewFind {
+        /// What FM shows now: player:UID, staff:UID, club:UID, or team:CLUB/INDEX (0 is the senior team).
+        viewing: String,
+        /// File for this screen's pointers.
+        out: PathBuf,
+        /// The files of earlier screens.
+        #[arg(long, num_args = 1..)]
+        against: Vec<PathBuf>,
+        /// How far before a pointer to look for the vtable of the object that holds it.
+        #[arg(long, default_value = "0x800")]
+        back: String,
+        /// Print at most this many places of each kind.
+        #[arg(long, default_value_t = 60)]
+        max: usize,
+    },
+    /// Say what FM's screen shows: the player, member of staff, team or club whose screen is open, as the editor's
+    /// "Follow the game's screen" reads it. With --watch, say it again each time it changes, for --seconds.
+    Viewing {
+        #[arg(long)]
+        watch: bool,
+        #[arg(long, default_value_t = 120)]
+        seconds: u64,
+    },
     /// Find the (begin, end) arrays in the game's memory that hold the 8-byte slot at ADDR,
     /// e.g. a hit from `refs`, and the object each array belongs to.
     Holders {
@@ -1394,6 +1421,10 @@ fn run(cli: Cli) -> Result<()> {
             let modules = list_modules(&process).context("listing modules")?;
             refs(&process, &modules, resolve(&addr, &modules)?, parse_hex(&span)?, max)
         }
+        Command::Viewing { watch, seconds } => viewing(&connect(process, ArraySource::ProfileFirst)?, watch, seconds),
+        Command::ViewFind { viewing, out, against, back, max } => {
+            view_find(&connect(process, ArraySource::ProfileFirst)?, &viewing, &out, &against, parse_hex(&back)?, max)
+        }
         Command::Squads => squads(&connect(process, ArraySource::ProfileFirst)?),
         Command::RelationBlocks { entries, show } => {
             relation_blocks(&connect(process, ArraySource::ProfileFirst)?, entries, show)
@@ -1702,6 +1733,238 @@ fn refs(process: &Process, modules: &[Module], addr: u64, span: u64, max: usize)
         scanned as f64 / 1_048_576.0,
         started.elapsed().as_secs_f64()
     );
+    Ok(())
+}
+
+fn viewing(session: &Session, watch: bool, seconds: u64) -> Result<()> {
+    use fmlibre_core::{ScreenWatch, Viewed};
+    let started = Instant::now();
+    let mut screen = ScreenWatch::find(&session.process).context("found no GameWorldTabsAndBookmarksModule")?;
+    println!("Found the screen's tabs in {:.1} s.", started.elapsed().as_secs_f64());
+    let (players, staff, clubs) = (session.players()?, session.staff()?, session.clubs()?);
+    let teams = session.team_places(&clubs);
+    let say = |viewed: Viewed| match viewed {
+        Viewed::Person(uid) => match (players.iter().find(|p| p.uid == uid), staff.iter().find(|s| s.uid == uid)) {
+            (Some(p), _) => format!("player {uid} {} ({})", p.name, p.club.as_deref().unwrap_or("no club")),
+            (None, Some(s)) => format!("staff {uid} {}", s.name),
+            _ => format!("person {uid}, not in the lists"),
+        },
+        Viewed::Team(uid) => match teams.get(&uid) {
+            Some(&(club, i)) => {
+                format!("team {uid}: {} team {i}", clubs.iter().find(|c| c.uid == club).map_or("?", |c| &c.name))
+            }
+            None => format!("team {uid}, not found among the clubs' teams"),
+        },
+        Viewed::Club(uid) => match clubs.iter().find(|c| c.uid == uid) {
+            Some(c) => format!("club {uid} {}", c.name),
+            None => format!("club {uid}, not in the lists"),
+        },
+        Viewed::Other => "something else".to_owned(),
+    };
+    let mut last = None;
+    loop {
+        match screen.read(&session.process) {
+            Ok(viewed) if last != Some(viewed) => {
+                println!("{:>6.1} s  {}", started.elapsed().as_secs_f64(), say(viewed));
+                last = Some(viewed);
+            }
+            Ok(_) => {}
+            Err(_) => bail!("the screen's tabs are gone"),
+        }
+        if !watch || started.elapsed().as_secs() >= seconds {
+            return Ok(());
+        }
+        std::thread::sleep(std::time::Duration::from_millis(300));
+    }
+}
+
+/// One pointer to what a screen showed, as `view-find` saves it: where it is, to which of the addresses of what was
+/// shown ("object", "person", "team" or "club"), and the nearest game-plugin pointer before it (the vtable of the
+/// object holding it, as an offset in the plugin) with how far before it that is.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct ViewHit {
+    at: u64,
+    what: String,
+    class: Option<(u64, u64)>,
+}
+
+/// The pointers to what a screen shows and its ids, as `view_targets` gives them.
+type ViewTargets = (Vec<(u64, &'static str)>, Vec<(u32, &'static str)>);
+
+/// The addresses and the ids of what `viewing` names (see `Command::ViewFind`), each with its name in a `ViewHit`.
+fn view_targets(session: &Session, viewing: &str) -> Result<ViewTargets> {
+    let (kind, id) =
+        viewing.split_once(':').context("VIEWING is player:UID, staff:UID, club:UID or team:CLUB/INDEX")?;
+    let layout = &session.layout;
+    Ok(match kind {
+        "player" => {
+            let uid: u32 = id.parse().context("a player's id")?;
+            let p =
+                session.players()?.into_iter().find(|p| p.uid == uid).with_context(|| format!("no player {uid}"))?;
+            (
+                vec![(p.address, "object"), (p.address + layout.player.identity() + p.shift, "person")],
+                vec![(uid, "uid")],
+            )
+        }
+        "staff" => {
+            let uid: u32 = id.parse().context("a member of staff's id")?;
+            let m = session.staff()?.into_iter().find(|m| m.uid == uid).with_context(|| format!("no staff {uid}"))?;
+            (vec![(m.address, "object"), (m.address + layout.staff.identity() + m.shift, "person")], vec![(uid, "uid")])
+        }
+        "club" => {
+            let uid: u32 = id.parse().context("a club's id")?;
+            let c = session.clubs()?.into_iter().find(|c| c.uid == uid).with_context(|| format!("no club {uid}"))?;
+            (vec![(c.address, "club")], vec![(uid, "club-uid")])
+        }
+        "team" => {
+            let (club, index) = id.split_once('/').context("team:CLUB/INDEX, e.g. team:1708/0")?;
+            let (uid, index): (u32, u64) = (club.parse()?, index.parse()?);
+            let c = session.clubs()?.into_iter().find(|c| c.uid == uid).with_context(|| format!("no club {uid}"))?;
+            let process = &session.process;
+            let begin = process.read_u64(c.address + layout.club.teams)?;
+            let end = process.read_u64(c.address + layout.club.teams + 8)?;
+            ensure!(begin + index * 8 < end, "{} has {} team(s)", c.name, end.saturating_sub(begin) / 8);
+            (vec![(process.read_u64(begin + index * 8)?, "team"), (c.address, "club")], vec![(uid, "club-uid")])
+        }
+        _ => bail!("VIEWING starts with player:, staff:, club: or team:"),
+    })
+}
+
+fn read_view_file(path: &Path) -> Result<(String, Vec<ViewHit>)> {
+    let text = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+    let mut lines = text.lines();
+    let viewing = lines.next().and_then(|l| l.strip_prefix("viewing ")).context("not a view-find file")?.to_owned();
+    let hits = lines
+        .filter_map(|line| {
+            let mut f = line.split_whitespace();
+            let at = u64::from_str_radix(f.next()?, 16).ok()?;
+            let what = f.next()?.to_owned();
+            let class = match (f.next()?, f.next()?) {
+                ("-", _) => None,
+                (vtable, back) => Some((u64::from_str_radix(vtable, 16).ok()?, u64::from_str_radix(back, 16).ok()?)),
+            };
+            Some(ViewHit { at, what, class })
+        })
+        .collect();
+    Ok((viewing, hits))
+}
+
+fn view_find(session: &Session, viewing: &str, out: &Path, against: &[PathBuf], back: u64, max: usize) -> Result<()> {
+    use std::collections::{HashMap, HashSet};
+    use std::fmt::Write as _;
+    const CHUNK: u64 = 8 << 20;
+    let process = &session.process;
+    let modules = list_modules(process).context("listing modules")?;
+    let plugin = find_module(&modules, GAME_PLUGIN).context("no game plugin")?;
+    let (pointers, ids) = view_targets(session, viewing)?;
+    let targets: HashMap<u64, &str> = pointers.into_iter().collect();
+    let ids: HashMap<u32, &str> = ids.into_iter().collect();
+    let started = Instant::now();
+
+    let class_of = |at: u64| -> Option<(u64, u64)> {
+        let from = at.checked_sub(back)?;
+        let bytes = process.read_bytes(from, back as usize).ok()?;
+        let words = bytes.as_chunks::<8>().0;
+        words.iter().enumerate().rev().find_map(|(i, w)| {
+            let value = u64::from_le_bytes(*w);
+            plugin.contains(value).then(|| (value - plugin.base, back - i as u64 * 8))
+        })
+    };
+
+    let mut hits = Vec::new();
+    for region in
+        regions(process, 0x1_0000, 0x7FFF_FFFF_0000).into_iter().filter(|r| r.is_readable() && r.is_writable())
+    {
+        let mut offset = 0;
+        while offset < region.size {
+            let base = region.base + offset;
+            let len = (region.size - offset).min(CHUNK);
+            if let Ok(chunk) = process.read_bytes(base, len as usize) {
+                for (i, word) in chunk.as_chunks::<8>().0.iter().enumerate() {
+                    if let Some(what) = targets.get(&u64::from_le_bytes(*word)) {
+                        let at = base + (i * 8) as u64;
+                        hits.push(ViewHit { at, what: (*what).to_owned(), class: class_of(at) });
+                    }
+                }
+                // Ids, as 4-byte words wherever they are aligned.
+                for (i, word) in chunk.as_chunks::<4>().0.iter().enumerate() {
+                    if let Some(what) = ids.get(&u32::from_le_bytes(*word)) {
+                        let at = base + (i * 4) as u64;
+                        hits.push(ViewHit { at, what: (*what).to_owned(), class: class_of(at) });
+                    }
+                }
+            }
+            offset += CHUNK;
+        }
+    }
+    let mut text = format!("viewing {viewing}\n");
+    for hit in &hits {
+        let class = hit.class.map_or_else(|| "- -".to_owned(), |(v, b)| format!("{v:x} {b:x}"));
+        let _ = writeln!(text, "{:x} {} {class}", hit.at, hit.what);
+    }
+    std::fs::write(out, text).with_context(|| format!("writing {}", out.display()))?;
+    println!(
+        "{} pointer(s) to {viewing} saved to {} ({:.1} s).",
+        hits.len(),
+        out.display(),
+        started.elapsed().as_secs_f64()
+    );
+    if against.is_empty() {
+        return Ok(());
+    }
+
+    let mut screens = vec![(viewing.to_owned(), hits)];
+    for path in against {
+        screens.push(read_view_file(path)?);
+    }
+    let shown: HashSet<&str> = screens.iter().map(|(v, _)| v.as_str()).collect();
+    if shown.len() < screens.len() {
+        println!("Note: two screens showed the same thing; the places below need screens that each show another.");
+    }
+    println!("Screens: {}", screens.iter().map(|(v, _)| v.as_str()).collect::<Vec<_>>().join(", "));
+
+    // The same address, pointing at what each screen showed.
+    let mut places: Vec<&ViewHit> = screens[0]
+        .1
+        .iter()
+        .filter(|hit| screens[1..].iter().all(|(_, other)| other.iter().any(|o| o.at == hit.at && o.what == hit.what)))
+        .collect();
+    places.sort_by_key(|hit| hit.at);
+    println!("\n{} place(s) at the same address on every screen:", places.len());
+    for hit in places.iter().take(max) {
+        let class = hit.class.map_or_else(String::new, |(v, b)| format!("vtable {GAME_PLUGIN}+{v:#x} at -{b:#x}"));
+        println!("  {:#014x}  {:<34} {:<6} {class}", hit.at, describe_address(hit.at, &modules), hit.what);
+    }
+
+    // The same place in an object of the same class, wherever that object is now.
+    let same_address: HashSet<u64> = places.iter().map(|hit| hit.at).collect();
+    let classes = |hits: &[ViewHit]| -> HashSet<((u64, u64), String)> {
+        hits.iter().filter_map(|hit| Some((hit.class?, hit.what.clone()))).collect()
+    };
+    let mut common = classes(&screens[0].1);
+    for (_, other) in &screens[1..] {
+        let theirs = classes(other);
+        common.retain(|key| theirs.contains(key));
+    }
+    let mut by_class: Vec<_> = common
+        .into_iter()
+        .map(|key| {
+            let now: Vec<u64> = screens[0]
+                .1
+                .iter()
+                .filter(|hit| hit.class == Some(key.0) && hit.what == key.1 && !same_address.contains(&hit.at))
+                .map(|hit| hit.at)
+                .collect();
+            (key, now)
+        })
+        .filter(|(_, now)| !now.is_empty())
+        .collect();
+    by_class.sort_by_key(|(_, now)| now.len());
+    println!("\n{} place(s) in an object of the same class on every screen, at another address:", by_class.len());
+    for (((vtable, at), what), now) in by_class.iter().take(max) {
+        let first = now.iter().take(3).map(|a| format!("{a:#x}")).collect::<Vec<_>>().join(" ");
+        println!("  vtable {GAME_PLUGIN}+{vtable:#x}, -{at:#x} before it: {what}, now {} place(s): {first}", now.len());
+    }
     Ok(())
 }
 

@@ -1113,6 +1113,10 @@ export const en = {
     followGame: "Follow the game",
     followGameTitle:
       "Read the game again by itself once it moves on a day or loads another save, after any dialog or edit you have open",
+    /** Opening the profile of what FM's screen shows, as it changes (see followView.ts). */
+    followScreen: "Follow the game's screen",
+    followScreenTitle:
+      "Open the profile of the player, staff member or club FM is showing, or the squad of the team it is showing, as you move around the game",
     /** Showing the overlay, a compact window over the game (see overlay.ts). */
     overlay: "Overlay over the game",
     overlayTitle: (shortcut: string | null) =>
