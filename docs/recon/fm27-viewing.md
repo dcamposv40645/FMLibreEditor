@@ -91,6 +91,16 @@ every 10 s (`RETRY` in `follow.rs`).
 
 Between screens it read `something else` and `person 4294967295, not in the lists`, as on the Mac.
 
+### Memory the game has reused
+
+On Steam build 26577676, after an hour of play, the app read `something else` on every screen. Of the places that
+held a pointer to the class, the first whose panel and value pointed at objects was no module: memory a module had
+held, which the game had since given to smaller objects of other classes (its "panel" an `Unity.Collections.Allocator`,
+its `+0x2A8` the class pointer of the object after it). The module itself held no value on that screen, so the editor
+passed it by. Its panel, as the module's found above, was an `SI.Bindable.PanelID`. So `ScreenWatch::find` now takes the object
+whose panel is one, with a value or none, and `ScreenWatch::read` takes the module for gone, and looks for it again,
+once its panel is something else.
+
 ## Open
 
 - **Other screens.** A competition, a nation or the inbox reads as "something else", which the editor ignores. Which of

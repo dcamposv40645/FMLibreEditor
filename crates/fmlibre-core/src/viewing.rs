@@ -25,6 +25,8 @@ const ID_FIELD: &str = "m_currentSecondaryTabObjectUniqueID";
 const VALUE_FIELD: &str = "m_lastTabUpdateValue";
 /// Its field with the panel open on the screen.
 const PANEL_FIELD: &str = "m_currentOpenPanel";
+/// The class of the panel open.
+const PANEL_CLASS: &str = "SI.Bindable.PanelID";
 /// The field of a typed value (`SI.Core.TypedValue<T>`) with the value it holds.
 const TYPED_VALUE_FIELD: &str = "m_value";
 
@@ -70,6 +72,9 @@ pub struct ScreenWatch {
     class: u64,
     id_at: u64,
     value_at: u64,
+    panel_at: u64,
+    /// The class of the panel open (`SI.Bindable.PanelID`).
+    panel_class: u64,
     /// The offset of `m_value` in each class of typed value seen, and what each class of reference means.
     value_fields: HashMap<u64, Option<u64>>,
     kinds: HashMap<u64, Kind>,
@@ -95,19 +100,35 @@ impl ScreenWatch {
         let fields = class_fields(process, class);
         let id_at = *fields.get(ID_FIELD)?;
         let value_at = *fields.get(VALUE_FIELD)?;
-        // The class's objects start with a pointer to it, as do the game's tables of its methods and others. The one
-        // that runs the screen has a panel open and a typed value: objects of classes of their own.
+        // The class's objects start with a pointer to it, as do the game's tables of its methods and others, and so
+        // does memory an object of it held and the game has since given to others. The one that runs the screen has
+        // a panel open, an `SI.Bindable.PanelID`; its typed value is an object, or none on some screens.
         let panel_at = *fields.get(PANEL_FIELD)?;
-        let module = find_words(process, &[class]).into_iter().find(|&object| {
-            is_object(process, process.read_u64(object + panel_at).unwrap_or(0))
-                && is_object(process, process.read_u64(object + value_at).unwrap_or(0))
+        let (module, panel_class) = find_words(process, &[class]).into_iter().find_map(|object| {
+            let panel_class = panel_class(process, process.read_u64(object + panel_at).unwrap_or(0))?;
+            let value = process.read_u64(object + value_at).unwrap_or(0);
+            (value == 0 || is_object(process, value)).then_some((object, panel_class))
         })?;
-        Some(Self { module, class, id_at, value_at, value_fields: HashMap::new(), kinds: HashMap::new() })
+        Some(Self {
+            module,
+            class,
+            id_at,
+            value_at,
+            panel_at,
+            panel_class,
+            value_fields: HashMap::new(),
+            kinds: HashMap::new(),
+        })
     }
 
     /// What the screen shows now.
     pub fn read(&mut self, process: &Process) -> Result<Viewed, WatchError> {
         if process.read_u64(self.module).map_err(|_| WatchError::Gone)? != self.class {
+            return Err(WatchError::Gone);
+        }
+        // Memory the game has given to other objects can still start with the class: its panel then is no panel.
+        let panel = process.read_u64(self.module + self.panel_at).map_err(|_| WatchError::Gone)?;
+        if panel != 0 && process.read_u64(panel).ok() != Some(self.panel_class) {
             return Err(WatchError::Gone);
         }
         let uid = process.read_u32(self.module + self.id_at).map_err(|_| WatchError::Gone)?;
@@ -129,6 +150,12 @@ impl ScreenWatch {
         let class = process.read_u64(reference).ok()?;
         Some(*self.kinds.entry(class).or_insert_with(|| kind_of(class_name(process, class).as_deref())))
     }
+}
+
+/// The class of `at` when it is a panel the screen has open, an object of `SI.Bindable.PanelID`.
+fn panel_class(process: &Process, at: u64) -> Option<u64> {
+    let class = process.read_u64(at).ok().filter(|_| is_user_pointer(at))?;
+    (is_user_pointer(class) && class_name(process, class).as_deref() == Some(PANEL_CLASS)).then_some(class)
 }
 
 /// Whether `at` is an object of the interface: it starts with a pointer to a class with a name.
