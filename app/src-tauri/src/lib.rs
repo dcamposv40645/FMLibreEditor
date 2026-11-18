@@ -1,6 +1,7 @@
 mod bridge;
 mod follow;
 mod overlay;
+mod zoom;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -3751,6 +3752,8 @@ pub fn run() {
         .manage(AppState::default())
         .manage(Graphics::default())
         .manage(follow::Follow::default())
+        // The main window's zoom, as chosen before (see zoom.rs).
+        .on_page_load(zoom::on_page_load)
         .setup(|app| {
             // Reading the packs' config files takes a moment: do it beside the window. FM keeps its user data
             // in the documents folder on Windows and in Application Support on macOS, or somewhere else, which
@@ -3885,6 +3888,7 @@ pub fn run() {
             team_action,
             refresh_player,
             follow::set_follow_view,
+            zoom::remember_zoom,
             max_attributes,
             graphics_info,
             can_self_update,

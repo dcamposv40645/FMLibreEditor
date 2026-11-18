@@ -5,7 +5,7 @@
 // (`npm run dev`) the browser's own zoom does the same, and the app leaves it alone.
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { inTauri } from "./api";
+import { call, inTauri } from "./api";
 import { isOverlay } from "./overlay";
 
 /** The levels on offer, smallest first. */
@@ -53,7 +53,15 @@ export function setZoom(next: number): void {
   } catch {
     // Not kept: this run still shows it.
   }
+  remember(next);
   listeners.forEach((listener) => listener(next));
+}
+
+/** Tells the Rust side the level, which draws the window at it once the page has loaded next time (see zoom.rs). */
+function remember(at: number): void {
+  void call<void>("remember_zoom", { level: at }).catch(() => {
+    // An older Rust side: the page's own setting is all there is.
+  });
 }
 
 /** One level larger (`by` 1) or smaller (-1), as far as the levels go. */
@@ -76,6 +84,9 @@ export function startZoom(): void {
       .setZoom(level)
       .catch(() => {});
   }
+  // The Rust side draws the window at the level once the page has loaded, which on Windows the page cannot do at
+  // startup itself; a level chosen before it knew of it is told now.
+  remember(level);
   window.addEventListener("keydown", (event) => {
     if (!(event.ctrlKey || event.metaKey) || event.altKey) {
       return;
