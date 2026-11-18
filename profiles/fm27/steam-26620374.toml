@@ -1,0 +1,35 @@
+# FM27 on Steam, build 26620374: the update of 17 November 2026, worked out by `fmlibre-probe profile` on a save of
+# 14 October 2026, where all 12 checks passed. As on Game Pass 0.9.2524.0, the same update, the statics moved (the
+# retirement manager's is 0xC068 before the players pair, 0xDAC0 in build 26577676, so the search found it), and the
+# club finance record keeps corporate facilities a few bytes further on (see the end); the rest of the object layout
+# is the same. Taken from tozmoz/FMLibreEditor (PR #215), without what this fork does not have: the statics of the
+# game's own object, the tactics and the training manager, the national teams, and the tactics' layout.
+name = "FM27 Steam build 26620374"
+edition = 27
+storefront = "steam"
+
+# The in-game date, 2026-10-14 on the save: 3622 of 3622 contract dates before it, and 120 of 120 current injuries
+# begun by then and not over. The field beside the arrays held it too.
+current_date = 0x58268E0
+
+# The static pointer to the retirement manager (RETIREMENT_MANAGER),
+# 0xC068 before the players pair; 14 planned retirements on the save.
+retirement_manager = 0x586F850
+
+# game_plugin as mapped in memory; these values identify the build.
+[plugin]
+size_of_image = 0x18878000
+link_timestamp = 0x6AF5C68F
+
+# RVAs in game_plugin of the (begin, end) pointer pairs of the entity arrays.
+[arrays]
+players = 0x587B8B8
+staff = 0x587B900
+clubs = 0x587BA70
+
+# What this build lays out otherwise than layout.toml, as Game Pass 0.9.2524.0 does. The club finance record keeps
+# corporate facilities at 0x8AD, 4 bytes further on: 30 of 30 clubs read there what build 26385295 read at 0x8A9
+# (Arsenal 19, Liverpool 16, Galatasaray 20), and 0x8A9 held 0 for each; the balance, the budgets and the ticket price
+# are where they were. Read at 0x8A9, no club's finances look real, and the editor reads none.
+[layout.club_finance]
+corporate = 0x8AD

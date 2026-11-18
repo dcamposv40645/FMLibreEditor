@@ -1,0 +1,35 @@
+# FM27 on Steam for macOS (app 4530370, build 26620374), the update of 17 November 2026 (version 27.1.0.2505117): the
+# arm64 half of the universal game_plugin, which Apple silicon Macs run natively. Worked out by `fmlibre-probe profile`
+# on a running save (14 July 2027), as for a build without a profile, and all 12 checks passed. __DATA starts 0x34000
+# further on (0x5774000); the date and the retirement manager's static moved 0x10 more, the arrays 0x178 more, and the
+# club finance record keeps corporate facilities a few bytes further on, as on Windows (see the end). Taken from
+# tozmoz/FMLibreEditor (PR #215), without what this fork does not have: the statics of the game's own object, the
+# tactics and the training manager, the national teams, and the tactics' layout.
+name = "FM27 Steam build 26620374 (macOS, Apple silicon)"
+edition = 27
+storefront = "steam"
+
+# The in-game date, 14 July 2027 on the save: 3,416 of 3,416 contract dates before it, and 82 of 82 current injuries
+# begun by then and not over.
+current_date = 0x5781DC8
+
+# The static pointer to the retirement manager (RETIREMENT_MANAGER), found by searching: 830 planned retirements on
+# the save.
+retirement_manager = 0x57782B8
+
+# game_plugin as mapped in memory: its LC_UUID identifies the build and the architecture.
+[plugin]
+uuid = "869F5F90-FD89-3606-8AE4-2B4A7F02F324"
+
+# RVAs in game_plugin of the (begin, end) pointer pairs of the entity arrays, as calibrate found them by scanning.
+[arrays]
+players = 0x57A2FC8
+staff = 0x57A3010
+clubs = 0x57A3180
+
+# What this build lays out otherwise than layout-macos.toml, as the Windows builds of the same update do. The club
+# finance record keeps corporate facilities at 0x8AD, 4 bytes further on: Arsenal 19, Liverpool 16, Tottenham Hotspur
+# 20, as on Windows, and 0x8A9 holds 0; the balance, the budgets and the ticket price are where they were. Read at 0x8A9,
+# no club's finances look real, and the editor reads none; read here, 336 clubs keep them, corporate facilities 1 to 20.
+[layout.club_finance]
+corporate = 0x8AD

@@ -823,6 +823,37 @@ pub struct BuildProfile {
     /// the same distance from the arrays in every build: 0xED60 before the players pair on Game Pass, 0xDAC0 on
     /// Steam.
     pub retirement_manager: Option<u64>,
+    /// What this build lays out otherwise than the edition's layout, as Steam build 26620374 does: the club finance
+    /// record's corporate facilities 4 bytes further on.
+    #[serde(default)]
+    pub layout: Option<LayoutPatch>,
+}
+
+/// The places a build profile moves in the edition's layout (`[layout.â€¦]` in its file).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LayoutPatch {
+    #[serde(default)]
+    pub club_finance: Option<ClubFinancePatch>,
+}
+
+/// The places of the club finance record a build moves.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ClubFinancePatch {
+    #[serde(default)]
+    pub corporate: Option<u64>,
+}
+
+impl LayoutPatch {
+    /// `layout` with this build's places.
+    pub fn apply(&self, layout: &mut Layout) {
+        if let Some(finance) = &self.club_finance
+            && let Some(corporate) = finance.corporate
+        {
+            layout.club_finance.corporate = corporate;
+        }
+    }
 }
 
 /// Identifies a build of the game plugin from its headers as mapped in memory.
@@ -909,6 +940,7 @@ const BUILDS: &[&str] = &[
     include_str!("../../../profiles/fm27/steam-26340721.toml"),
     include_str!("../../../profiles/fm27/steam-26385295.toml"),
     include_str!("../../../profiles/fm27/steam-26577676.toml"),
+    include_str!("../../../profiles/fm27/steam-26620374.toml"),
     include_str!("../../../profiles/fm27/steam-26227640-macos-x86_64.toml"),
     include_str!("../../../profiles/fm27/steam-26227640-macos-arm64.toml"),
     include_str!("../../../profiles/fm27/steam-26340721-macos-x86_64.toml"),
@@ -917,6 +949,8 @@ const BUILDS: &[&str] = &[
     include_str!("../../../profiles/fm27/steam-26385295-macos-arm64.toml"),
     include_str!("../../../profiles/fm27/steam-26577676-macos-x86_64.toml"),
     include_str!("../../../profiles/fm27/steam-26577676-macos-arm64.toml"),
+    include_str!("../../../profiles/fm27/steam-26620374-macos-x86_64.toml"),
+    include_str!("../../../profiles/fm27/steam-26620374-macos-arm64.toml"),
 ];
 
 /// The built-in object layout for `edition`, if there is one.
@@ -980,6 +1014,10 @@ pub fn profile_text(profile: &BuildProfile, notes: &ProfileNotes) -> String {
     let ArrayRvas { players, staff, clubs } = profile.arrays;
     text += "\n# RVAs in game_plugin of the (begin, end) pointer pairs of the entity arrays.\n[arrays]\n";
     text += &format!("players = {players:#X}\nstaff = {staff:#X}\nclubs = {clubs:#X}\n");
+    if let Some(corporate) = profile.layout.as_ref().and_then(|l| l.club_finance.as_ref()).and_then(|f| f.corporate) {
+        text += "\n# What this build lays out otherwise than the edition's layout.\n[layout.club_finance]\n";
+        text += &format!("corporate = {corporate:#X}\n");
+    }
     text
 }
 
@@ -1001,6 +1039,20 @@ mod tests {
             mapped.sort_unstable();
             assert_eq!(grouped, mapped);
         }
+    }
+
+    #[test]
+    fn a_build_can_move_corporate_facilities() {
+        let profile = profile_for(PluginFingerprint::Pe { size_of_image: 0x1887_8000, link_timestamp: 0x6AF5_C68F })
+            .expect("Steam build 26620374");
+        let mut layout = layout_for(27).expect("FM27 layout");
+        assert_eq!(layout.club_finance.corporate, 0x8A9);
+        profile.layout.as_ref().expect("a patch").apply(&mut layout);
+        assert_eq!(layout.club_finance.corporate, 0x8AD);
+        // An earlier build keeps the layout's.
+        let earlier = profile_for(PluginFingerprint::Pe { size_of_image: 0x185F_A000, link_timestamp: 0x6AF3_8E5C })
+            .expect("Steam build 26577676");
+        assert!(earlier.layout.is_none());
     }
 
     #[test]

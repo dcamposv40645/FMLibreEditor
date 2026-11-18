@@ -1,0 +1,32 @@
+# FM27 on Steam for macOS (app 4530370, build 26620374), the update of 17 November 2026 (version 27.1.0.2505117): the
+# Intel half of the universal game_plugin, which Intel Macs run, and Apple silicon Macs under Rosetta. Found in the file,
+# not read in a running game: __DATA starts 0x50000 further on (0x5D26000), and the code's RIP-relative loads peak
+# where build 26577676's did, moved as the arm64 half's (the date and the retirement manager's static 0x10 more, the
+# arrays 0x180 more), with the same loads around each: 7,630 at the date, 197 and 181 at the players' begin and end,
+# 19 and 19 at the staff's, 106 and 94 at the clubs', 66 at the retirement manager's static and 537 at the game's own
+# object's. Taken from tozmoz/FMLibreEditor (PR #215), without what this fork does not have: the static of the game's
+# own object and the tactics' layout.
+name = "FM27 Steam build 26620374 (macOS, Intel)"
+edition = 27
+storefront = "steam"
+
+# The in-game date.
+current_date = 0x5D33710
+
+# The static pointer to the retirement manager, 0x9810 before the date as in build 26577676; its class is checked
+# before it is used.
+retirement_manager = 0x5D29F00
+
+# game_plugin as mapped in memory: its LC_UUID identifies the build and the architecture.
+[plugin]
+uuid = "864625AF-9AA9-3254-8EC5-47E9D486132A"
+
+# RVAs in game_plugin of the (begin, end) pointer pairs of the entity arrays.
+[arrays]
+players = 0x5D53368
+staff = 0x5D533B0
+clubs = 0x5D53520
+
+# What this build lays out otherwise than layout-macos.toml, as the arm64 half does: both halves are laid out alike.
+[layout.club_finance]
+corporate = 0x8AD

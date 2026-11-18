@@ -3494,6 +3494,8 @@ fn profile(session: &Session, out: Option<&Path>) -> Result<()> {
         arrays: ArrayRvas { players: players.pair_rva, staff: staff.pair_rva, clubs: clubs.pair_rva },
         current_date: date.map(|place| place.rva),
         retirement_manager: retirement.map(|place| place.rva),
+        // Places a build moves are found by hand, not by this search.
+        layout: None,
     };
 
     let failed = health.failed();
